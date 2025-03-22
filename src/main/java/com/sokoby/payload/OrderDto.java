@@ -22,7 +22,7 @@ public class OrderDto {
     private UUID customerId;
 
     @NotNull
-    private UUID shippingAddressId;
+    private AddressDto shippingAddress;
 
     @NotNull
     private UUID paymentId;

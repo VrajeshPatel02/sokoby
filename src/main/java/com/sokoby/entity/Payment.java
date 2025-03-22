@@ -38,6 +38,9 @@ public class Payment {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Date createdAt;
 
+    @Column(name = "transaction_id")
+    private String transactionId;
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
     private Date updatedAt;
