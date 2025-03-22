@@ -44,6 +44,9 @@ public class Store {
     @Column(name = "updated_at")
     private Date updatedAt;
 
+    @Column(name = "domain",nullable = false)
+    private String domain;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();

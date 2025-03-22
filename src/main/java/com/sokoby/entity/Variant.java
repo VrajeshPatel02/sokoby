@@ -37,6 +37,9 @@ public class Variant {
     @Column(name = "updated_at")
     private Date updatedAt;
 
+    @Column(name = "name", nullable = false)
+    private String name;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();
