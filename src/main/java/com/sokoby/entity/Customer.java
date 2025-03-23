@@ -49,6 +49,10 @@ public class Customer {
     @Column(name = "role")
     private String role = "ROLE_CUSTOMER";
 
+    @ManyToOne
+    @JoinColumn(name = "store_id")
+    private Store store;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();

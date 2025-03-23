@@ -21,7 +21,12 @@ public class CustomerMapper {
         dto.setName(customer.getName());
         dto.setEmail(customer.getEmail());
         dto.setPhoneNumber(customer.getPhoneNumber());
-        dto.setOrders(customer.getOrders().stream().map(OrderMapper::toDto).collect(Collectors.toList()));
+        if(customer.getOrders() != null){
+            dto.setOrders(customer.getOrders().stream().map(OrderMapper::toDto).collect(Collectors.toList()));
+        }
+
+        dto.setPhoneNumber(customer.getPhoneNumber());
+        dto.setStoreId(customer.getStore().getId());
         dto.setCreatedAt(customer.getCreatedAt());
         dto.setUpdatedAt(customer.getUpdatedAt());
         return dto;

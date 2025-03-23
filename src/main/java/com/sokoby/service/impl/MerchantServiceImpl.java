@@ -16,7 +16,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCrypt;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,17 +30,14 @@ public class MerchantServiceImpl implements MerchantService {
 
     private final MerchantRepository merchantRepo;
     private final JWTService jwtService;
-    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public MerchantServiceImpl(
         MerchantRepository merchantRepo, 
-        JWTService jwtService,
-        PasswordEncoder passwordEncoder
+        JWTService jwtService
     ) {
         this.merchantRepo = merchantRepo;
         this.jwtService = jwtService;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Override

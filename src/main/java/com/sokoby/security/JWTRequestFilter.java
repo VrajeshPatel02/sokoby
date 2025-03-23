@@ -1,6 +1,9 @@
 package com.sokoby.security;
 
+import com.sokoby.entity.Customer;
 import com.sokoby.entity.Merchant;
+import com.sokoby.exception.MerchantException;
+import com.sokoby.repository.CustomerRepository;
 import com.sokoby.repository.MerchantRepository;
 import com.sokoby.service.JWTService;
 import jakarta.servlet.FilterChain;
@@ -23,10 +26,13 @@ import java.util.Optional;
 public class JWTRequestFilter extends OncePerRequestFilter {
     private final JWTService jwtService;
     private final MerchantRepository merchantRepository;
+    private final CustomerRepository customerRepository;
 
-    public JWTRequestFilter(JWTService jwtService, MerchantRepository merchantRepository) {
+    public JWTRequestFilter(JWTService jwtService, MerchantRepository merchantRepository,
+                            CustomerRepository customerRepository) {
         this.jwtService = jwtService;
         this.merchantRepository = merchantRepository;
+        this.customerRepository = customerRepository;
     }
 
     @Override
@@ -51,17 +57,32 @@ public class JWTRequestFilter extends OncePerRequestFilter {
     }
 
     private void authenticateUser(String token, HttpServletRequest request) {
-        String username = jwtService.getUserEmail(token);
-        Optional<Merchant> userOptional = merchantRepository.findByEmail(username);
-
-        if (userOptional.isPresent()) {
-            Merchant user = userOptional.get();
-            List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-            authorities.add(new SimpleGrantedAuthority(user.getRole())); // Ensure "ROLE_MERCHANT"
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    user, null, authorities);
-            authentication.setDetails(new WebAuthenticationDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        String email = jwtService.getUserEmail(token);
+        try{
+            Optional<Merchant> userOptional = merchantRepository.findByEmail(email);
+            if (userOptional.isPresent()) {
+                Merchant user = userOptional.get();
+                List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+                authorities.add(new SimpleGrantedAuthority(user.getRole())); // Ensure "ROLE_MERCHANT"
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        user, null, authorities);
+                authentication.setDetails(new WebAuthenticationDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+            else {
+                Optional<Customer> customerOptional = customerRepository.findByEmail(email);
+                if (customerOptional.isPresent()) {
+                    Customer user = customerOptional.get();
+                    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+                    authorities.add(new SimpleGrantedAuthority(user.getRole())); // Ensure "ROLE_CUSTOMER"
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            user, null, authorities);
+                    authentication.setDetails(new WebAuthenticationDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
+            }
+        } catch (Exception e) {
+           throw new MerchantException("User Not Found", "USER_NOT_FOUND");
         }
     }
 }

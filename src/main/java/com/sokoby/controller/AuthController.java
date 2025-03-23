@@ -3,6 +3,7 @@ package com.sokoby.controller;
 import com.sokoby.payload.JWTTokenDto;
 import com.sokoby.payload.LoginDto;
 import com.sokoby.payload.MerchantDto;
+import com.sokoby.service.CustomerService;
 import com.sokoby.service.MerchantService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -25,6 +26,9 @@ public class AuthController {
     @Autowired
     private MerchantService merchantService;
 
+    @Autowired
+    private CustomerService customerService;
+
     @PostMapping("/signup")
     public ResponseEntity<?> createUser(@Valid @RequestBody MerchantDto dto, BindingResult result) {
         if (result.hasErrors()) {
@@ -37,9 +41,20 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> verifyLogin(@RequestBody LoginDto loginDto) {
 
+
         JWTTokenDto jwtTokenDto = merchantService.verifyUser(loginDto);
         if (jwtTokenDto.getToken() != null) {
             return new ResponseEntity<>(jwtTokenDto, HttpStatus.CREATED);
+        }
+        return new ResponseEntity<>("Invalid token", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+
+    @PostMapping("/customer/login")
+    public ResponseEntity<?> verifyCustomerLogin(@RequestBody LoginDto loginDto) {
+        JWTTokenDto jwtTokenDto = customerService.verifyUser(loginDto);
+        if(jwtTokenDto.getToken() != null) {
+            return new ResponseEntity<>(jwtTokenDto, HttpStatus.OK);
         }
         return new ResponseEntity<>("Invalid token", HttpStatus.INTERNAL_SERVER_ERROR);
     }

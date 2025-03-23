@@ -9,11 +9,9 @@ import com.sokoby.util.PasswordGenerator;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCrypt;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -28,14 +26,11 @@ public class JWTSuccessHandler implements AuthenticationSuccessHandler {
     private final MerchantRepository merchantRepository;
 
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
     @Value("${client.url}")
     private String clientUrl;
 
     public JWTSuccessHandler(JWTService jwtService, MerchantService merchantService,
-                             MerchantRepository merchantRepository, PasswordEncoder passwordEncoder) {
+                             MerchantRepository merchantRepository) {
         this.jwtService = jwtService;
         this.merchantService = merchantService;
         this.merchantRepository = merchantRepository;
