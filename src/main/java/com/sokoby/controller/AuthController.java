@@ -3,7 +3,6 @@ package com.sokoby.controller;
 import com.sokoby.payload.JWTTokenDto;
 import com.sokoby.payload.LoginDto;
 import com.sokoby.payload.MerchantDto;
-import com.sokoby.service.CustomerService;
 import com.sokoby.service.MerchantService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;

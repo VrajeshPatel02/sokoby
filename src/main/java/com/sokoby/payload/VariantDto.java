@@ -29,6 +29,9 @@ public class VariantDto {
     @Size(min = 3, message = "SKU should be at least 3 characters")
     private String sku;
 
+    private Integer stockQuantity;
+
     private Date createdAt;
+
     private Date updatedAt;
 }

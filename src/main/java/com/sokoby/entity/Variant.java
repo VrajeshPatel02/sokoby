@@ -29,6 +29,9 @@ public class Variant {
     @Column(name = "price")
     private Double price;
 
+    @Column(name = "stock_quantity")
+    private Integer stockQuantity;
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)
     private Date createdAt;
