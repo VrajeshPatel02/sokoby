@@ -16,9 +16,9 @@ public class MerchantMapper {
         MerchantDto dto = new MerchantDto();
         dto.setId(merchant.getId());
         dto.setEmail(merchant.getEmail());
-        dto.setPassword(merchant.getPassword()); // Note: In practice, password should not be returned
         dto.setFirstName(merchant.getFirstName());
         dto.setLastName(merchant.getLastName());
+        dto.setRole(merchant.getRole());
         dto.setCreatedAt(merchant.getCreatedAt());
         dto.setUpdatedAt(merchant.getUpdatedAt());
         return dto;

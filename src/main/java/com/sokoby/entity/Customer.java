@@ -46,6 +46,9 @@ public class Customer {
     @Column(name = "updated_at")
     private Date updatedAt;
 
+    @Column(name = "role")
+    private String role = "ROLE_CUSTOMER";
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();

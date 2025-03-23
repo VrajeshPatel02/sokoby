@@ -32,6 +32,8 @@ public class MerchantDto {
     @Size(min = 1, message = "Last name should not be empty")
     private String lastName;
 
+    private String role;
+
     private Date createdAt;
     private Date updatedAt;
 }

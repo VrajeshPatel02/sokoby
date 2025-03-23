@@ -12,7 +12,6 @@ public class AddressMapper {
         if (address == null) {
             throw new IllegalArgumentException("Address entity cannot be null");
         }
-
         AddressDto dto = new AddressDto();
         dto.setStreet(address.getStreet());
         dto.setCity(address.getCity());

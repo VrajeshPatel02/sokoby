@@ -13,7 +13,6 @@ public class OrderMapper {
         if (order == null) {
             throw new IllegalArgumentException("Order entity cannot be null");
         }
-
         OrderDto dto = new OrderDto();
         dto.setId(order.getId());
         dto.setStoreId(order.getStore().getId());

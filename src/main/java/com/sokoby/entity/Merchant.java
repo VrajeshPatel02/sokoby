@@ -13,7 +13,6 @@ import java.util.UUID;
 @Table(name = "merchants")
 @Getter
 @Setter
-@NoArgsConstructor
 public class Merchant {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -40,13 +39,13 @@ public class Merchant {
     @Column(name = "updated_at")
     private Date updatedAt;
 
-    @PrePersist
-    protected void onCreate() {
+    @Column(name = "role")
+    private String role = "ROLE_MERCHANT";
+
+    public Merchant() {
         this.createdAt = new Date();
     }
-
-    @PreUpdate
-    protected void onUpdate() {
+    public void setUpdatedAt() {
         this.updatedAt = new Date();
     }
 }
