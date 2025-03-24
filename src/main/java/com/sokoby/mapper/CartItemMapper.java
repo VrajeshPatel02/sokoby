@@ -17,6 +17,7 @@ public class CartItemMapper {
         dto.setId(cartItem.getId());
         dto.setVariantId(cartItem.getVariant().getId());
         dto.setQuantity(cartItem.getQuantity());
+        dto.setCartId(cartItem.getCart().getId());
         dto.setCreatedAt(cartItem.getCreatedAt());
         dto.setUpdatedAt(cartItem.getUpdatedAt());
         return dto;

@@ -36,9 +36,13 @@ public class CartMapper {
 
     public static CartDto toDtoWithItems(Cart cart) {
         CartDto dto = toDto(cart);
-        dto.setCartItems(cart.getCartItems().stream()
-                .map(CartItemMapper::toDto)
-                .collect(Collectors.toList()));
+        if(cart.getCartItems().isEmpty()){
+            return dto;
+        }else {
+            dto.setCartItems(cart.getCartItems().stream()
+                    .map(CartItemMapper::toDto)
+                    .collect(Collectors.toList()));
+        }
         return dto;
     }
 }

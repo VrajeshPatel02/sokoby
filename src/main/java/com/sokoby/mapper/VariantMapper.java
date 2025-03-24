@@ -19,6 +19,7 @@ public class VariantMapper {
         dto.setName(variant.getName());
         dto.setPrice(variant.getPrice());
         dto.setSku(variant.getSku());
+        dto.setStockQuantity(variant.getStockQuantity());
         dto.setCreatedAt(variant.getCreatedAt());
         dto.setUpdatedAt(variant.getUpdatedAt());
         if (variant.getProduct() != null) {
@@ -37,6 +38,7 @@ public class VariantMapper {
         variant.setName(dto.getName());
         variant.setPrice(dto.getPrice());
         variant.setSku(dto.getSku());
+        variant.setStockQuantity(dto.getStockQuantity());
         // Product association handled in service
         return variant;
     }
