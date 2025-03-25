@@ -14,11 +14,7 @@ public interface OrderService {
 
     List<OrderDto> getOrdersByCustomerId(UUID customerId);
 
-    Page<OrderDto> getOrdersByCustomerId(UUID customerId, Pageable pageable);
-
     List<OrderDto> getOrdersByStoreId(UUID storeId);
-
-    Page<OrderDto> getOrdersByStoreId(UUID storeId, Pageable pageable);
 
     OrderDto updateOrder(UUID id, OrderDto dto);
 

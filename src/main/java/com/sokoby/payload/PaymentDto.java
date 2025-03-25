@@ -30,8 +30,24 @@ public class PaymentDto {
 
     private String stripePaymentId;
 
+    private String clientSecret;
+
     private String transactionId;
+
+    private String description;
+
+    private String currency;
 
     private Date createdAt;
     private Date updatedAt;
+
+
+    public PaymentDto(String id, Long amount, String currency, String clientSecret, String status, String description) {
+        this.id = UUID.fromString(id);
+        this.amount = amount / 100.0;
+        this.clientSecret = clientSecret;
+        this.status = status;
+        this.currency = currency;
+        this.description=description;
+    }
 }

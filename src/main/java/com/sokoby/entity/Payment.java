@@ -41,6 +41,9 @@ public class Payment {
     @Column(name = "transaction_id")
     private String transactionId;
 
+    @Column(name="payment_method")
+    private String paymentMethod;
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
     private Date updatedAt;

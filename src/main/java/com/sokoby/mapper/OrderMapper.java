@@ -34,6 +34,7 @@ public class OrderMapper {
         order.setId(dto.getId());
         order.setTotalAmount(dto.getTotalAmount());
         order.setStatus(OrderStatus.valueOf(dto.getStatus()));
+        order.setShippingAddress(AddressMapper.toEntity(dto.getShippingAddress()));
         // Relationships (store, customer, addresses, shipping method) set in service
         return order;
     }

@@ -3,6 +3,7 @@ package com.sokoby.service;
 import com.sokoby.payload.PaymentDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,4 +26,9 @@ public interface PaymentService {
     PaymentDto updatePayment(UUID id, PaymentDto dto);
 
     void deletePayment(UUID id);
+
+    @Transactional
+    PaymentDto confirmPayment(String paymentIntentId);
+
+    PaymentDto cancelPayment(String paymentIntentId);
 }
