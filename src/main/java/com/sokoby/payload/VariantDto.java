@@ -31,6 +31,8 @@ public class VariantDto {
 
     private Integer stockQuantity;
 
+    private UUID inventoryItemId;
+
     private Date createdAt;
 
     private Date updatedAt;

@@ -43,6 +43,10 @@ public class Variant {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @OneToOne(orphanRemoval = true)
+    @JoinColumn(name = "inventory_item_id")
+    private InventoryItem inventoryItem;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();

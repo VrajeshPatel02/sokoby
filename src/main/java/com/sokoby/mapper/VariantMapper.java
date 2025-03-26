@@ -25,6 +25,7 @@ public class VariantMapper {
         if (variant.getProduct() != null) {
             dto.setProductId(variant.getProduct().getId());
         }
+        dto.setInventoryItemId(variant.getInventoryItem().getId());
         return dto;
     }
 
