@@ -14,6 +14,7 @@ import com.sokoby.repository.CartRepository;
 import com.sokoby.repository.CustomerRepository;
 import com.sokoby.repository.VariantRepository;
 import com.sokoby.service.CartService;
+import com.sokoby.service.InventoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +23,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,14 +34,16 @@ public class CartServiceImpl implements CartService {
     private final CartItemRepository cartItemRepository;
     private final CustomerRepository customerRepository;
     private final VariantRepository variantRepository;
+    private final InventoryService inventoryService;
 
     @Autowired
     public CartServiceImpl(CartRepository cartRepository, CartItemRepository cartItemRepository,
-                           CustomerRepository customerRepository, VariantRepository variantRepository) {
+                           CustomerRepository customerRepository, VariantRepository variantRepository, InventoryService inventoryService) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.customerRepository = customerRepository;
         this.variantRepository = variantRepository;
+        this.inventoryService = inventoryService;
     }
 
     @Override
@@ -74,7 +76,8 @@ public class CartServiceImpl implements CartService {
         Variant variant = variantRepository.findById(itemDto.getVariantId())
                 .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
 
-        if (variant.getStockQuantity() < itemDto.getQuantity()) {
+        // Update to use InventoryService for stock check
+        if (!inventoryService.isAvailable(variant.getId(), itemDto.getQuantity())) {
             throw new MerchantException("Insufficient stock for variant " + variant.getName(), "INSUFFICIENT_STOCK");
         }
 
@@ -91,6 +94,7 @@ public class CartServiceImpl implements CartService {
         }
         try {
             cartItemRepository.save(cartItem);
+
             logger.info("Added item to cart for customer ID: {}", customerId);
             return CartMapper.toDtoWithItems(cart);
         } catch (Exception e) {
@@ -103,6 +107,7 @@ public class CartServiceImpl implements CartService {
     @Transactional
     @CacheEvict(value = "carts", key = "#customerId")
     public CartDto updateCartItem(UUID customerId, UUID cartItemId, CartItemDto itemDto) {
+
         validateCartItemInput(itemDto);
 
         Cart cart = getOrCreateCart(customerId);
@@ -185,6 +190,28 @@ public class CartServiceImpl implements CartService {
             logger.error("Failed to clear cart for customer {}: {}", customerId, e.getMessage());
             throw new MerchantException("Failed to clear cart", "CART_CLEAR_ERROR");
         }
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(value = "carts", key = "#customerId")
+    @Override
+    public CartDto getCartByCustomerId(UUID customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new MerchantException("Customer not found", "CUSTOMER_NOT_FOUND"));
+
+        Optional<Cart> cartOptional = cartRepository.findByCustomerId(customerId);
+        Cart cart;
+        if (cartOptional.isEmpty()) {
+            logger.info("No cart found for customer ID: {}, returning empty cart", customerId);
+            cart = new Cart();
+            cart.setCustomer(customer);
+        } else {
+            cart = cartOptional.get();
+            // Force initialization of cartItems within transaction
+            cart.getCartItems().size(); // This triggers loading of lazy-loaded items
+        }
+
+        return CartMapper.toDtoWithItems(cart);
     }
 
     private Cart getOrCreateCart(UUID customerId) {
