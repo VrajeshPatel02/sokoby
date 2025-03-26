@@ -33,9 +33,6 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
-    private List<Payment> payments = new ArrayList<>(); // Changed to One-to-Many
-
     @Embedded
     private Address shippingAddress;
 
@@ -44,13 +41,13 @@ public class Order {
     private OrderStatus status;
 
     @Column(name = "subtotal", nullable = false)
-    private Double subtotal = 0.0; // Sum of order item subtotals
+    private Double subtotal = 0.0;
 
     @Column(name = "discount_amount")
-    private Double discountAmount = 0.0; // Amount discounted
+    private Double discountAmount = 0.0;
 
     @Column(name = "total_amount", nullable = false)
-    private Double totalAmount = 0.0; // Final amount after discount
+    private Double totalAmount = 0.0;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "discount_id")
@@ -77,23 +74,20 @@ public class Order {
         calculateTotals();
     }
 
-    // Method to calculate subtotal and total amount
     public void calculateTotals() {
         this.subtotal = orderItems.stream()
                 .mapToDouble(OrderItem::getSubtotal)
                 .sum();
         this.discountAmount = (discount != null) ? discount.calculateDiscount(this.subtotal) : 0.0;
-        this.totalAmount = Math.max(0, this.subtotal - this.discountAmount); // Ensure non-negative
+        this.totalAmount = Math.max(0, this.subtotal - this.discountAmount);
     }
 
-    // Helper method to add an order item
     public void addOrderItem(OrderItem item) {
         orderItems.add(item);
         item.setOrder(this);
         calculateTotals();
     }
 
-    // Helper method to remove an order item
     public void removeOrderItem(OrderItem item) {
         orderItems.remove(item);
         item.setOrder(null);

@@ -7,6 +7,7 @@ import com.sokoby.mapper.AddressMapper;
 import com.sokoby.payload.OrderDto;
 import com.sokoby.repository.*;
 import com.sokoby.mapper.OrderMapper;
+import com.sokoby.service.InventoryService;
 import com.sokoby.service.OrderService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,18 +29,20 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final StoreRepository storeRepository;
     private final CustomerRepository customerRepository;
-    private final VariantRepository variantRepository; // Added for inventory checks
-    private final InventoryService inventoryService; // Added for inventory management
+    private final VariantRepository variantRepository;
+    private final InventoryService inventoryService;
+    private final DiscountRepository discountRepository; // Added for discount handling
 
     @Autowired
     public OrderServiceImpl(OrderRepository orderRepository, StoreRepository storeRepository,
                             CustomerRepository customerRepository, VariantRepository variantRepository,
-                            InventoryService inventoryService) {
+                            InventoryService inventoryService, DiscountRepository discountRepository) {
         this.orderRepository = orderRepository;
         this.storeRepository = storeRepository;
         this.customerRepository = customerRepository;
         this.variantRepository = variantRepository;
         this.inventoryService = inventoryService;
+        this.discountRepository = discountRepository;
     }
 
     @Override
@@ -53,15 +56,15 @@ public class OrderServiceImpl implements OrderService {
         Customer customer = customerRepository.findById(dto.getCustomerId())
                 .orElseThrow(() -> new MerchantException("Customer not found", "CUSTOMER_NOT_FOUND"));
 
-        Order order = OrderMapper.toEntity(dto);
+        Order order = new Order();
         order.setStore(store);
         order.setCustomer(customer);
         order.setShippingAddress(AddressMapper.toEntity(dto.getShippingAddress()));
+        order.setStatus(OrderStatus.PLACED);
 
         // Add order items and check inventory
         dto.getOrderItems().forEach(itemDto -> {
-            Variant variant = variantRepository.findById(itemDto.getVariantId())
-                    .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
+            Variant variant = variantRepository.findById(itemDto.getVariantId()).orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
             if (!inventoryService.isAvailable(variant.getId(), itemDto.getQuantity())) {
                 throw new MerchantException("Insufficient stock for variant: " + variant.getId(), "INSUFFICIENT_STOCK");
             }
@@ -70,6 +73,13 @@ public class OrderServiceImpl implements OrderService {
             item.setQuantity(itemDto.getQuantity());
             order.addOrderItem(item);
         });
+
+        // Apply discount if provided
+        if (dto.getDiscountCode() != null) {
+            Discount discount = discountRepository.findByCode(dto.getDiscountCode())
+                    .orElseThrow(() -> new MerchantException("Invalid discount code", "INVALID_DISCOUNT_CODE"));
+            order.setDiscount(discount);
+        }
 
         // Reserve inventory
         order.getOrderItems().forEach(item -> inventoryService.reserveStock(item.getVariant().getId(), item.getQuantity()));
@@ -180,7 +190,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void validateStatusTransition(OrderStatus current, OrderStatus next) {
-        // Example state machine logic
         if (current == OrderStatus.CANCELED && next != OrderStatus.CANCELED) {
             throw new MerchantException("Cannot change status from CANCELED", "INVALID_STATUS_TRANSITION");
         }
@@ -188,6 +197,4 @@ public class OrderServiceImpl implements OrderService {
             throw new MerchantException("Cannot revert SHIPPED to PLACED", "INVALID_STATUS_TRANSITION");
         }
     }
-
-    // Other methods (getOrdersByCustomerId, getOrdersByStoreId) remain largely unchanged
 }

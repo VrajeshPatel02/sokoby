@@ -10,13 +10,13 @@ public class OrderItemMapper {
 
     public static OrderItemDto toDto(OrderItem orderItem) {
         if (orderItem == null) {
-            throw new IllegalArgumentException("OrderItem entity cannot be null");
+            throw new IllegalArgumentException("OrderItem entity cannot be null for mapping to DTO");
         }
 
         OrderItemDto dto = new OrderItemDto();
         dto.setId(orderItem.getId());
-        dto.setOrderId(orderItem.getOrder().getId());
-        dto.setVariantId(orderItem.getVariant().getId());
+        dto.setOrderId(orderItem.getOrder() != null ? orderItem.getOrder().getId() : null);
+        dto.setVariantId(orderItem.getVariant() != null ? orderItem.getVariant().getId() : null);
         dto.setQuantity(orderItem.getQuantity());
         dto.setPrice(orderItem.getPrice());
         dto.setSubtotal(orderItem.getSubtotal());
@@ -27,14 +27,16 @@ public class OrderItemMapper {
 
     public static OrderItem toEntity(OrderItemDto dto) {
         if (dto == null) {
-            throw new IllegalArgumentException("OrderItemDto cannot be null");
+            throw new IllegalArgumentException("OrderItemDto cannot be null for mapping to entity");
         }
 
         OrderItem orderItem = new OrderItem();
-        orderItem.setId(dto.getId());
+        if (dto.getId() != null) {
+            orderItem.setId(dto.getId());
+        }
         orderItem.setQuantity(dto.getQuantity());
-        orderItem.setPrice(dto.getPrice());
-        // Order and Variant relationships set in service
+        // Note: price and subtotal are set in @PrePersist based on variant
+        // Order and Variant relationships are set in the service layer
         return orderItem;
     }
 }

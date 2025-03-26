@@ -24,14 +24,14 @@ public class OrderItem {
     private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "variant_id", nullable = false) // Made nullable=false
+    @JoinColumn(name = "variant_id", nullable = false)
     private Variant variant;
 
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
     @Column(name = "price", nullable = false)
-    private Double price; // Price at time of order creation
+    private Double price;
 
     @Column(name = "subtotal", nullable = false)
     private Double subtotal;
@@ -47,13 +47,13 @@ public class OrderItem {
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();
-        this.price = this.variant.getPrice(); // Capture price at creation
+        this.price = this.variant.getPrice();
         this.subtotal = this.quantity * this.price;
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = new Date();
-        this.subtotal = this.quantity * this.price; // Recalculate if quantity changes
+        this.subtotal = this.quantity * this.price;
     }
 }
