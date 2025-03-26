@@ -1,21 +1,21 @@
 package com.sokoby.payload;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.util.Date;
 import java.util.UUID;
 
-@Data
+@Getter
+@Setter
 public class DiscountDto {
     private UUID id;
-    private UUID storeId;
     private String code;
-    private String type; // PERCENTAGE, FIXED_AMOUNT, FREE_SHIPPING
-    private BigDecimal value;
-    private BigDecimal minimumPurchaseAmount;
-    private Date startDate;
-    private Date endDate;
-    private Integer usageLimit;
-    private String status; // ACTIVE, EXPIRED, DRAFT
-} 
+    private String discountType;
+    private Double value;
+    private Double minimumOrderAmount;
+    private Date validFrom;
+    private Date validUntil;
+    private Boolean isActive;
+    private Date createdAt;
+}
