@@ -30,30 +30,28 @@ public class OrderItem {
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
-    @Column(name = "price", nullable = false)
-    private Double price;
-
-    @Column(name = "subtotal", nullable = false)
-    private Double subtotal;
-
-    @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Temporal(TemporalType.DATE)
+    @Column(name = "created_at")
     private Date createdAt;
 
-    @Temporal(TemporalType.TIMESTAMP)
+    @Temporal(TemporalType.DATE)
     @Column(name = "updated_at")
     private Date updatedAt;
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();
-        this.price = this.variant.getPrice();
-        this.subtotal = this.quantity * this.price;
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = new Date();
-        this.subtotal = this.quantity * this.price;
+    }
+
+    public Double getSubtotal() {
+        if (variant == null || variant.getPrice() == null || quantity == null) {
+            return 0.0; // Default to 0.0 if any part is missing
+        }
+        return variant.getPrice() * quantity;
     }
 }

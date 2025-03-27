@@ -30,7 +30,6 @@ public class OrderMapper {
         dto.setDiscountCode(order.getDiscount() != null ? order.getDiscount().getCode() : null);
         dto.setStatus(order.getStatus().name());
         dto.setCreatedAt(order.getCreatedAt());
-        dto.setUpdatedAt(order.getUpdatedAt());
         return dto;
     }
 

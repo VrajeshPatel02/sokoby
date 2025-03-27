@@ -31,7 +31,7 @@ public class OrderServiceImpl implements OrderService {
     private final CustomerRepository customerRepository;
     private final VariantRepository variantRepository;
     private final InventoryService inventoryService;
-    private final DiscountRepository discountRepository; // Added for discount handling
+    private final DiscountRepository discountRepository;
 
     @Autowired
     public OrderServiceImpl(OrderRepository orderRepository, StoreRepository storeRepository,
@@ -64,14 +64,15 @@ public class OrderServiceImpl implements OrderService {
 
         // Add order items and check inventory
         dto.getOrderItems().forEach(itemDto -> {
-            Variant variant = variantRepository.findById(itemDto.getVariantId()).orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
+            Variant variant = variantRepository.findById(itemDto.getVariantId())
+                    .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
             if (!inventoryService.isAvailable(variant.getId(), itemDto.getQuantity())) {
                 throw new MerchantException("Insufficient stock for variant: " + variant.getId(), "INSUFFICIENT_STOCK");
             }
             OrderItem item = new OrderItem();
             item.setVariant(variant);
             item.setQuantity(itemDto.getQuantity());
-            order.addOrderItem(item);
+            order.addOrderItem(item); // This calls calculateTotals safely now
         });
 
         // Apply discount if provided
@@ -79,6 +80,7 @@ public class OrderServiceImpl implements OrderService {
             Discount discount = discountRepository.findByCode(dto.getDiscountCode())
                     .orElseThrow(() -> new MerchantException("Invalid discount code", "INVALID_DISCOUNT_CODE"));
             order.setDiscount(discount);
+            order.calculateTotals(); // Recalculate with discount
         }
 
         // Reserve inventory
@@ -123,7 +125,17 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
 
         validateOrderInput(dto);
-        validateStatusTransition(order.getStatus(), OrderStatus.valueOf(dto.getStatus()));
+
+        // Validate status transition only if status is provided
+        if (dto.getStatus() != null) {
+            try {
+                OrderStatus nextStatus = OrderStatus.valueOf(dto.getStatus().toUpperCase());
+                validateStatusTransition(order.getStatus(), nextStatus);
+                order.setStatus(nextStatus);
+            } catch (IllegalArgumentException e) {
+                throw new MerchantException("Invalid order status: " + dto.getStatus(), "INVALID_STATUS");
+            }
+        }
 
         // Update fields
         if (dto.getStoreId() != null) {
@@ -137,15 +149,15 @@ public class OrderServiceImpl implements OrderService {
         if (dto.getShippingAddress() != null) {
             order.setShippingAddress(AddressMapper.toEntity(dto.getShippingAddress()));
         }
-        if (dto.getStatus() != null) {
-            order.setStatus(OrderStatus.valueOf(dto.getStatus()));
-        }
 
         // Handle order items update
         order.getOrderItems().clear();
         dto.getOrderItems().forEach(itemDto -> {
             Variant variant = variantRepository.findById(itemDto.getVariantId())
                     .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
+            if (!inventoryService.isAvailable(variant.getId(), itemDto.getQuantity())) {
+                throw new MerchantException("Insufficient stock for variant: " + variant.getId(), "INSUFFICIENT_STOCK");
+            }
             OrderItem item = new OrderItem();
             item.setVariant(variant);
             item.setQuantity(itemDto.getQuantity());
@@ -190,11 +202,12 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void validateStatusTransition(OrderStatus current, OrderStatus next) {
-        if (current == OrderStatus.CANCELED && next != OrderStatus.CANCELED) {
-            throw new MerchantException("Cannot change status from CANCELED", "INVALID_STATUS_TRANSITION");
+        if (current.equals(OrderStatus.CANCELED) && !next.equals(OrderStatus.CANCELED)) {
+            throw new MerchantException("Cannot change status from CANCELED to " + next, "INVALID_STATUS_TRANSITION");
         }
-        if (current == OrderStatus.SHIPPED && next == OrderStatus.PLACED) {
+        if (current.equals(OrderStatus.SHIPPED) && next.equals(OrderStatus.PLACED)) {
             throw new MerchantException("Cannot revert SHIPPED to PLACED", "INVALID_STATUS_TRANSITION");
         }
+        // Add more rules as needed, e.g., PLACED -> SHIPPED is valid, but PLACED -> CANCELED is not
     }
 }

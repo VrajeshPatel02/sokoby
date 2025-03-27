@@ -18,7 +18,6 @@ public class OrderItemMapper {
         dto.setOrderId(orderItem.getOrder() != null ? orderItem.getOrder().getId() : null);
         dto.setVariantId(orderItem.getVariant() != null ? orderItem.getVariant().getId() : null);
         dto.setQuantity(orderItem.getQuantity());
-        dto.setPrice(orderItem.getPrice());
         dto.setSubtotal(orderItem.getSubtotal());
         dto.setCreatedAt(orderItem.getCreatedAt());
         dto.setUpdatedAt(orderItem.getUpdatedAt());
