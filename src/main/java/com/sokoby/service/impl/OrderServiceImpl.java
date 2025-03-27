@@ -62,7 +62,6 @@ public class OrderServiceImpl implements OrderService {
         order.setShippingAddress(AddressMapper.toEntity(dto.getShippingAddress()));
         order.setStatus(OrderStatus.PLACED);
 
-        // Add order items and check inventory
         dto.getOrderItems().forEach(itemDto -> {
             Variant variant = variantRepository.findById(itemDto.getVariantId())
                     .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
@@ -72,18 +71,16 @@ public class OrderServiceImpl implements OrderService {
             OrderItem item = new OrderItem();
             item.setVariant(variant);
             item.setQuantity(itemDto.getQuantity());
-            order.addOrderItem(item); // This calls calculateTotals safely now
+            order.addOrderItem(item);
         });
 
-        // Apply discount if provided
         if (dto.getDiscountCode() != null) {
             Discount discount = discountRepository.findByCode(dto.getDiscountCode())
                     .orElseThrow(() -> new MerchantException("Invalid discount code", "INVALID_DISCOUNT_CODE"));
             order.setDiscount(discount);
-            order.calculateTotals(); // Recalculate with discount
+            order.calculateTotals();
         }
 
-        // Reserve inventory
         order.getOrderItems().forEach(item -> inventoryService.reserveStock(item.getVariant().getId(), item.getQuantity()));
 
         try {
@@ -126,7 +123,6 @@ public class OrderServiceImpl implements OrderService {
 
         validateOrderInput(dto);
 
-        // Validate status transition only if status is provided
         if (dto.getStatus() != null) {
             try {
                 OrderStatus nextStatus = OrderStatus.valueOf(dto.getStatus().toUpperCase());
@@ -137,7 +133,6 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        // Update fields
         if (dto.getStoreId() != null) {
             order.setStore(storeRepository.findById(dto.getStoreId())
                     .orElseThrow(() -> new MerchantException("Store not found", "STORE_NOT_FOUND")));
@@ -150,7 +145,6 @@ public class OrderServiceImpl implements OrderService {
             order.setShippingAddress(AddressMapper.toEntity(dto.getShippingAddress()));
         }
 
-        // Handle order items update
         order.getOrderItems().clear();
         dto.getOrderItems().forEach(itemDto -> {
             Variant variant = variantRepository.findById(itemDto.getVariantId())
@@ -181,7 +175,6 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
 
-        // Release reserved inventory if order is deleted
         order.getOrderItems().forEach(item ->
                 inventoryService.releaseStock(item.getVariant().getId(), item.getQuantity()));
 
@@ -191,6 +184,35 @@ public class OrderServiceImpl implements OrderService {
         } catch (Exception e) {
             logger.error("Failed to delete order with ID: {}", id, e);
             throw new MerchantException("Failed to delete order", "ORDER_DELETION_ERROR");
+        }
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "orders", key = "#id")
+    public OrderDto updateOrderStatus(UUID id, String status) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
+
+        if (status == null || status.trim().isEmpty()) {
+            throw new MerchantException("Status cannot be null or empty", "INVALID_STATUS");
+        }
+
+        try {
+            OrderStatus nextStatus = OrderStatus.valueOf(status.toUpperCase());
+            validateStatusTransition(order.getStatus(), nextStatus);
+            order.setStatus(nextStatus);
+        } catch (IllegalArgumentException e) {
+            throw new MerchantException("Invalid order status: " + status, "INVALID_STATUS");
+        }
+
+        try {
+            Order updatedOrder = orderRepository.save(order);
+            logger.info("Updated status of order {} to {}", id, status);
+            return OrderMapper.toDto(updatedOrder);
+        } catch (Exception e) {
+            logger.error("Failed to update status of order {}: {}", id, e.getMessage());
+            throw new MerchantException("Failed to update order status", "ORDER_STATUS_UPDATE_ERROR");
         }
     }
 
@@ -208,6 +230,5 @@ public class OrderServiceImpl implements OrderService {
         if (current.equals(OrderStatus.SHIPPED) && next.equals(OrderStatus.PLACED)) {
             throw new MerchantException("Cannot revert SHIPPED to PLACED", "INVALID_STATUS_TRANSITION");
         }
-        // Add more rules as needed, e.g., PLACED -> SHIPPED is valid, but PLACED -> CANCELED is not
     }
 }

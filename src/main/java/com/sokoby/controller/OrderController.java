@@ -21,10 +21,10 @@ public class OrderController {
         this.orderService = orderService;
     }
 
-    @PostMapping
-    public ResponseEntity<OrderDto> createOrder(@RequestBody OrderDto orderDto) {
-        OrderDto createdOrder = orderService.createOrder(orderDto);
-        return new ResponseEntity<>(createdOrder, HttpStatus.CREATED);
+    @GetMapping
+    public ResponseEntity<List<OrderDto>> getAllOrders() {
+        // Note: This assumes you might want a general list; adjust based on your needs
+        throw new UnsupportedOperationException("Use customer or store-specific endpoints");
     }
 
     @GetMapping("/{id}")
@@ -45,9 +45,21 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
+    @PostMapping
+    public ResponseEntity<OrderDto> createOrder(@RequestBody OrderDto dto) {
+        OrderDto createdOrder = orderService.createOrder(dto);
+        return new ResponseEntity<>(createdOrder, HttpStatus.CREATED);
+    }
+
     @PutMapping("/{id}")
-    public ResponseEntity<OrderDto> updateOrder(@PathVariable UUID id, @RequestBody OrderDto orderDto) {
-        OrderDto updatedOrder = orderService.updateOrder(id, orderDto);
+    public ResponseEntity<OrderDto> updateOrder(@PathVariable UUID id, @RequestBody OrderDto dto) {
+        OrderDto updatedOrder = orderService.updateOrder(id, dto);
+        return ResponseEntity.ok(updatedOrder);
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<OrderDto> updateOrderStatus(@PathVariable UUID id, @RequestBody String status) {
+        OrderDto updatedOrder = orderService.updateOrderStatus(id, status);
         return ResponseEntity.ok(updatedOrder);
     }
 

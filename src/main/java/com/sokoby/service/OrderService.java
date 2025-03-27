@@ -19,4 +19,6 @@ public interface OrderService {
     OrderDto updateOrder(UUID id, OrderDto dto);
 
     void deleteOrder(UUID id);
+
+    OrderDto updateOrderStatus(UUID id, String status);
 }
