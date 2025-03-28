@@ -19,6 +19,7 @@ public class StoreMapper {
         dto.setName(store.getName());
         dto.setDomain(store.getDomain());
         dto.setDescription(store.getDescription());
+        dto.setStripeAccountId(store.getStripeAccountId());
         dto.setCreatedAt(store.getCreatedAt());
         dto.setUpdatedAt(store.getUpdatedAt());
         if (store.getMerchant() != null) {
@@ -37,6 +38,7 @@ public class StoreMapper {
         store.setName(dto.getName());
         store.setDomain(dto.getDomain());
         store.setDescription(dto.getDescription());
+        store.setStripeAccountId(dto.getStripeAccountId());
         // Merchant association handled in service layer (requires fetching Merchant)
         return store;
     }

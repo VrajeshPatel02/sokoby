@@ -11,31 +11,33 @@ public class PaymentMapper {
 
     public static PaymentDto toDto(Payment payment) {
         if (payment == null) {
-            throw new IllegalArgumentException("Payment entity cannot be null");
+            throw new IllegalArgumentException("Payment entity cannot be null for mapping to DTO");
         }
 
         PaymentDto dto = new PaymentDto();
         dto.setId(payment.getId());
         dto.setOrderId(payment.getOrder().getId());
         dto.setAmount(payment.getAmount());
-        dto.setStatus(payment.getStatus().name());
-        dto.setTransactionId(payment.getTransactionId());
+        dto.setCurrency(payment.getCurrency());
+        dto.setStripePaymentIntentId(payment.getStripePaymentIntentId());
+        dto.setStatus(payment.getStatus().toString());
         dto.setCreatedAt(payment.getCreatedAt());
-        dto.setUpdatedAt(payment.getUpdatedAt());
+        dto.setStripeCheckoutSessionId(payment.getStripeCheckoutSessionId());
         return dto;
     }
 
     public static Payment toEntity(PaymentDto dto) {
         if (dto == null) {
-            throw new IllegalArgumentException("PaymentDto cannot be null");
+            throw new IllegalArgumentException("PaymentDto cannot be null for mapping to entity");
         }
 
         Payment payment = new Payment();
         payment.setId(dto.getId());
         payment.setAmount(dto.getAmount());
+        payment.setCurrency(dto.getCurrency());
+        payment.setStripePaymentIntentId(dto.getStripePaymentIntentId());
         payment.setStatus(PaymentStatus.valueOf(dto.getStatus()));
-        payment.setTransactionId(dto.getTransactionId());
-        // Order relationship set in service
+        payment.setStripeCheckoutSessionId(dto.getStripeCheckoutSessionId());
         return payment;
     }
 }

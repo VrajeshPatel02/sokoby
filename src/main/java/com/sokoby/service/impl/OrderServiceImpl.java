@@ -2,20 +2,29 @@ package com.sokoby.service.impl;
 
 import com.sokoby.entity.*;
 import com.sokoby.enums.OrderStatus;
+import com.sokoby.enums.PaymentStatus;
 import com.sokoby.exception.MerchantException;
 import com.sokoby.mapper.AddressMapper;
 import com.sokoby.payload.OrderDto;
+import com.sokoby.payload.PaymentDto;
 import com.sokoby.repository.*;
 import com.sokoby.mapper.OrderMapper;
 import com.sokoby.service.InventoryService;
 import com.sokoby.service.OrderService;
+import com.sokoby.service.PaymentService;
+import com.stripe.Stripe;
+import com.stripe.param.PaymentIntentConfirmParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.stripe.exception.StripeException;
+import com.stripe.model.PaymentIntent;
+import com.stripe.param.PaymentIntentCreateParams;
 
 import java.util.List;
 import java.util.UUID;
@@ -32,17 +41,25 @@ public class OrderServiceImpl implements OrderService {
     private final VariantRepository variantRepository;
     private final InventoryService inventoryService;
     private final DiscountRepository discountRepository;
+    private final PaymentRepository paymentRepository;
+    private final PaymentService paymentService;
+    @Value("${stripe.secret.key}")
+    private String stripeSecretKey;
+
 
     @Autowired
     public OrderServiceImpl(OrderRepository orderRepository, StoreRepository storeRepository,
                             CustomerRepository customerRepository, VariantRepository variantRepository,
-                            InventoryService inventoryService, DiscountRepository discountRepository) {
+                            InventoryService inventoryService, DiscountRepository discountRepository, PaymentRepository paymentRepository, PaymentService paymentService) {
         this.orderRepository = orderRepository;
         this.storeRepository = storeRepository;
         this.customerRepository = customerRepository;
         this.variantRepository = variantRepository;
         this.inventoryService = inventoryService;
         this.discountRepository = discountRepository;
+        this.paymentRepository = paymentRepository;
+        this.paymentService = paymentService;
+        Stripe.apiKey = stripeSecretKey;
     }
 
     @Override
@@ -55,6 +72,10 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new MerchantException("Store not found", "STORE_NOT_FOUND"));
         Customer customer = customerRepository.findById(dto.getCustomerId())
                 .orElseThrow(() -> new MerchantException("Customer not found", "CUSTOMER_NOT_FOUND"));
+
+        if (store.getStripeAccountId() == null) {
+            throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
+        }
 
         Order order = new Order();
         order.setStore(store);
@@ -78,19 +99,20 @@ public class OrderServiceImpl implements OrderService {
             Discount discount = discountRepository.findByCode(dto.getDiscountCode())
                     .orElseThrow(() -> new MerchantException("Invalid discount code", "INVALID_DISCOUNT_CODE"));
             order.setDiscount(discount);
-            order.calculateTotals();
         }
 
-        order.getOrderItems().forEach(item -> inventoryService.reserveStock(item.getVariant().getId(), item.getQuantity()));
+        order.calculateTotals();
+        Order savedOrder = orderRepository.save(order);
 
-        try {
-            Order savedOrder = orderRepository.save(order);
-            logger.info("Created order {} for customer {}", savedOrder.getId(), customer.getId());
-            return OrderMapper.toDto(savedOrder);
-        } catch (Exception e) {
-            logger.error("Failed to create order: {}", e.getMessage());
-            throw new MerchantException("Failed to create order", "ORDER_CREATION_ERROR");
-        }
+        // Create payment session (no paymentMethodId needed here)
+        PaymentDto payment = paymentService.createPayment(savedOrder.getId(), null);
+        // Inventory reservation deferred to webhook confirmation
+
+        logger.info("Created order {} with payment session for customer {} in store {}",
+                savedOrder.getId(), customer.getId(), store.getId());
+        OrderDto orderDto = OrderMapper.toDto(savedOrder);
+        orderDto.setPaymentMethodId(payment.getStripeCheckoutSessionId()); // Return session URL
+        return orderDto;
     }
 
     @Override

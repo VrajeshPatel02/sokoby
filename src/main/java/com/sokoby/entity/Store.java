@@ -27,6 +27,9 @@ public class Store {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "stripe_account_id") // New field for merchant's Stripe account
+    private String stripeAccountId;
+
     @Column(name = "description")
     private String description;
 

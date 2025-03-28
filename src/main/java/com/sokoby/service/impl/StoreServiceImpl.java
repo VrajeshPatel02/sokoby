@@ -106,6 +106,9 @@ public class StoreServiceImpl implements StoreService {
         if (dto.getDescription() != null) {
             store.setDescription(dto.getDescription());
         }
+        if (dto.getStripeAccountId() != null && !dto.getStripeAccountId().trim().isEmpty()){
+            store.setStripeAccountId(dto.getStripeAccountId());
+        }
         try {
             Store updatedStore = storeRepository.save(store);
             logger.info("Updated store with ID: {}", id);

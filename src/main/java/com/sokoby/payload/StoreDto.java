@@ -23,6 +23,8 @@ public class StoreDto {
     @Size(min = 3, message = "Domain should be at least 3 characters")
     private String domain;
 
+    private String stripeAccountId;
+
     private String description;
     private Date createdAt;
     private Date updatedAt;

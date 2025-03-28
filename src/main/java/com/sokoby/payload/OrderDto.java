@@ -34,6 +34,8 @@ public class OrderDto {
 
     private DiscountDto discount;
 
+    private String paymentMethodId;
+
     @NotNull
     private String status;
 

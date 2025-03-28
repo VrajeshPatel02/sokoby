@@ -20,29 +20,28 @@ public class Payment {
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
 
     @Column(name = "amount", nullable = false)
     private Double amount;
 
-    @Enumerated(EnumType.STRING)
+    @Column(name = "currency", nullable = false)
+    private String currency = "usd"; // Default to USD, adjust as needed
+
+    @Column(name = "stripe_payment_intent_id", nullable = false)
+    private String stripePaymentIntentId;
+
     @Column(name = "status", nullable = false)
     private PaymentStatus status;
 
-    @Column(name = "stripe_payment_id")
-    private String stripePaymentId;
+    @Column(name = "stripe_checkout_session_id")
+    private String stripeCheckoutSessionId; // Add this field
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)
     private Date createdAt;
-
-    @Column(name = "transaction_id")
-    private String transactionId;
-
-    @Column(name="payment_method")
-    private String paymentMethod;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
