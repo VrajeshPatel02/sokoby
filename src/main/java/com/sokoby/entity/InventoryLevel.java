@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.Date;
 import java.util.UUID;
 
 @Entity
@@ -23,23 +22,15 @@ public class InventoryLevel {
     @JoinColumn(name = "inventory_item_id", nullable = false)
     private InventoryItem inventoryItem;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "location_id", nullable = false)
-    private Location location;
+    @Column(name = "location_id", nullable = false)
+    private UUID locationId; // Assuming stock is tracked per location
+
+    @Column(name = "quantity", nullable = false)
+    private Integer quantity;
 
     @Column(name = "available_quantity", nullable = false)
-    private Integer availableQuantity = 0;
+    private Integer availableQuantity;
 
-    @Column(name = "reserved_quantity", nullable = false)
-    private Integer reservedQuantity = 0;
-
-    @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "updated_at")
-    private Date updatedAt;
-
-    @PrePersist
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = new Date();
-    }
+    @Column(name = "reserved_quantity")
+    private Integer reservedQuantity;
 }

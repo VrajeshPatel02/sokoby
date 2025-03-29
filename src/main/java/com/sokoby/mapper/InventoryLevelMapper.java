@@ -16,10 +16,10 @@ public class InventoryLevelMapper {
         InventoryLevelDto dto = new InventoryLevelDto();
         dto.setId(inventoryLevel.getId());
         dto.setInventoryItemId(inventoryLevel.getInventoryItem() != null ? inventoryLevel.getInventoryItem().getId() : null);
-        dto.setLocationId(inventoryLevel.getLocation() != null ? inventoryLevel.getLocation().getId() : null);
-        dto.setAvailableQuantity(inventoryLevel.getAvailableQuantity());
-        dto.setReservedQuantity(inventoryLevel.getReservedQuantity());
-        dto.setUpdatedAt(inventoryLevel.getUpdatedAt());
+        dto.setLocationId(inventoryLevel.getLocationId()); // Updated to match entity field
+        dto.setAvailableQuantity(inventoryLevel.getQuantity()); // Assuming quantity is available stock
+        dto.setReservedQuantity(0); // Placeholder; update if reserved quantity is tracked separately
+        dto.setUpdatedAt(null); // Add updatedAt to InventoryLevel entity if needed
         return dto;
     }
 
@@ -32,9 +32,9 @@ public class InventoryLevelMapper {
         if (dto.getId() != null) {
             inventoryLevel.setId(dto.getId());
         }
-        inventoryLevel.setAvailableQuantity(dto.getAvailableQuantity() != null ? dto.getAvailableQuantity() : 0);
-        inventoryLevel.setReservedQuantity(dto.getReservedQuantity() != null ? dto.getReservedQuantity() : 0);
-        // Relationships (inventoryItem, location) set in service
+        inventoryLevel.setQuantity(dto.getAvailableQuantity() != null ? dto.getAvailableQuantity() : 0);
+        inventoryLevel.setLocationId(dto.getLocationId());
+        // Relationships (inventoryItem) set in service
         return inventoryLevel;
     }
 }

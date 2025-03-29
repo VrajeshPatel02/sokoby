@@ -25,7 +25,6 @@ public class InventoryController {
         this.inventoryService = inventoryService;
     }
 
-    // GET: List all inventory items
     @GetMapping
     public ResponseEntity<List<InventoryItemDto>> getAllInventoryItems() {
         List<InventoryItemDto> dtos = inventoryService.getAllInventoryItems().stream()
@@ -34,9 +33,8 @@ public class InventoryController {
         return ResponseEntity.ok(dtos);
     }
 
-    // POST: Create a new inventory item
-    @PostMapping
-    public ResponseEntity<InventoryItemDto> createInventoryItem(@RequestBody InventoryItemDto dto) {
+    @PostMapping("/variant")
+    public ResponseEntity<InventoryItemDto> createInventoryItemForVariant(@RequestBody InventoryItemDto dto) {
         if (dto.getVariantId() == null) {
             throw new MerchantException("Variant ID cannot be null", "INVALID_VARIANT_ID");
         }
@@ -44,19 +42,29 @@ public class InventoryController {
             throw new MerchantException("Stock must be non-negative", "INVALID_STOCK");
         }
 
-        InventoryItem item = InventoryMapper.toEntity(dto);
-        InventoryItem savedItem = inventoryService.createInventoryItem(item.getVariant().getId(), dto.getStock());
+        InventoryItem savedItem = inventoryService.createInventoryItemForVariant(dto.getVariantId(), dto.getStock());
         return new ResponseEntity<>(InventoryMapper.toDto(savedItem), HttpStatus.CREATED);
     }
 
-    // GET: Retrieve a specific inventory item by ID
+    @PostMapping("/product")
+    public ResponseEntity<InventoryItemDto> createInventoryItemForProduct(@RequestBody InventoryItemDto dto) {
+        if (dto.getProductId() == null) {
+            throw new MerchantException("Product ID cannot be null", "INVALID_PRODUCT_ID");
+        }
+        if (dto.getStock() == null || dto.getStock() < 0) {
+            throw new MerchantException("Stock must be non-negative", "INVALID_STOCK");
+        }
+
+        InventoryItem savedItem = inventoryService.createInventoryItemForProduct(dto.getProductId(), dto.getStock());
+        return new ResponseEntity<>(InventoryMapper.toDto(savedItem), HttpStatus.CREATED);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<InventoryItemDto> getInventoryItemById(@PathVariable UUID id) {
         InventoryItem item = inventoryService.getInventoryItemById(id);
         return ResponseEntity.ok(InventoryMapper.toDto(item));
     }
 
-    // PUT: Update an inventory item (e.g., SKU or stock levels)
     @PutMapping("/{id}")
     public ResponseEntity<InventoryItemDto> updateInventoryItem(
             @PathVariable UUID id, @RequestBody InventoryItemDto dto) {
@@ -68,13 +76,16 @@ public class InventoryController {
             if (dto.getStock() < 0) {
                 throw new MerchantException("Stock cannot be negative", "INVALID_STOCK");
             }
-            inventoryService.updateStock(id, dto.getStock());
+            if (item.getVariant() != null) {
+                inventoryService.updateStockForVariant(item.getVariant().getId(), dto.getStock());
+            } else if (item.getProduct() != null) {
+                inventoryService.updateStockForProduct(item.getProduct().getId(), dto.getStock());
+            }
         }
         InventoryItem updatedItem = inventoryService.updateInventoryItem(item);
         return ResponseEntity.ok(InventoryMapper.toDto(updatedItem));
     }
 
-    // DELETE: Remove an inventory item
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteInventoryItem(@PathVariable UUID id) {
         inventoryService.deleteInventoryItem(id);

@@ -20,6 +20,8 @@ public class OrderItemDto {
 
     @NotNull
     private UUID variantId;
+    private UUID productId;
+
 
     @NotNull
     @Min(value = 1, message = "Quantity must be at least 1")

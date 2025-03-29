@@ -24,8 +24,13 @@ public class InventoryItem {
     @Column(name = "sku", nullable = false, unique = true)
     private String sku;
 
-    @OneToOne(mappedBy = "inventoryItem")
-    private Variant variant;
+    @OneToOne
+    @JoinColumn(name = "product_id")
+    private Product product; // Optional, for products without variants
+
+    @OneToOne
+    @JoinColumn(name = "variant_id")
+    private Variant variant; // Optional, for variant-specific items
 
     @OneToMany(mappedBy = "inventoryItem", cascade = CascadeType.ALL)
     private List<InventoryLevel> inventoryLevels = new ArrayList<>();
@@ -37,5 +42,20 @@ public class InventoryItem {
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();
+    }
+
+    @PreUpdate
+    private void validateTarget() {
+        if (product == null && variant == null) {
+            throw new IllegalStateException("InventoryItem must reference either a product or a variant");
+        }
+        if (product != null && variant != null) {
+            throw new IllegalStateException("InventoryItem cannot reference both a product and a variant");
+        }
+    }
+
+    // Helper method to get total stock
+    public int getTotalStock() {
+        return inventoryLevels.stream().mapToInt(InventoryLevel::getQuantity).sum();
     }
 }

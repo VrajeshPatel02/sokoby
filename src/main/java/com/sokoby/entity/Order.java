@@ -30,8 +30,8 @@ public class Order {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<OrderItem> orderItems = new ArrayList<>(); // Initialized to avoid null
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItem> orderItems = new ArrayList<>();
 
     @Embedded
     private Address shippingAddress;
@@ -74,15 +74,16 @@ public class Order {
     }
 
     public void calculateTotals() {
-        // Calculate subtotal, defaulting to 0.0 if orderItems is empty or contains null subtotals
         this.subtotal = orderItems.stream()
-                .mapToDouble(item -> item != null && item.getSubtotal() != null ? item.getSubtotal() : 0.0)
+                .mapToDouble(item -> {
+                    if (item.getVariant() != null) {
+                        return item.getVariant().getPrice() * item.getQuantity();
+                    } else {
+                        return item.getProduct().getPrice() * item.getQuantity();
+                    }
+                })
                 .sum();
-
-        // Calculate discount, defaulting to 0.0 if discount is null or invalid
-        this.discountAmount = (discount != null) ? discount.calculateDiscount(this.subtotal) : 0.0;
-
-        // Ensure totalAmount is non-negative
-        this.totalAmount = Math.max(0, this.subtotal - this.discountAmount);
+        this.discountAmount = discount != null ? discount.calculateDiscount(subtotal) : 0.0;
+        this.totalAmount = subtotal - discountAmount;
     }
 }

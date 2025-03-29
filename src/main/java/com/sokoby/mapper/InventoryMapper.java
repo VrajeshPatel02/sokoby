@@ -1,6 +1,7 @@
 package com.sokoby.mapper;
 
 import com.sokoby.entity.InventoryItem;
+import com.sokoby.entity.InventoryLevel;
 import com.sokoby.payload.InventoryItemDto;
 
 public class InventoryMapper {
@@ -16,9 +17,10 @@ public class InventoryMapper {
         InventoryItemDto dto = new InventoryItemDto();
         dto.setId(inventoryItem.getId());
         dto.setSku(inventoryItem.getSku());
+        dto.setProductId(inventoryItem.getProduct() != null ? inventoryItem.getProduct().getId() : null);
         dto.setVariantId(inventoryItem.getVariant() != null ? inventoryItem.getVariant().getId() : null);
         int totalStock = inventoryItem.getInventoryLevels().stream()
-                .mapToInt(il -> il.getAvailableQuantity())
+                .mapToInt(InventoryLevel::getQuantity)
                 .sum();
         dto.setStock(totalStock);
         dto.setCreatedAt(inventoryItem.getCreatedAt());
@@ -35,7 +37,7 @@ public class InventoryMapper {
             inventoryItem.setId(dto.getId());
         }
         inventoryItem.setSku(dto.getSku());
-        // Variant relationship and stock levels are set in the service layer
+        // Product and Variant relationships set in service layer
         return inventoryItem;
     }
 }

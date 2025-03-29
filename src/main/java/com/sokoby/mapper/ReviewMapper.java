@@ -10,30 +10,30 @@ public class ReviewMapper {
 
     public static ReviewDto toDto(Review review) {
         if (review == null) {
-            throw new IllegalArgumentException("Review entity cannot be null");
+            throw new IllegalArgumentException("Review entity cannot be null for mapping to DTO");
         }
 
         ReviewDto dto = new ReviewDto();
         dto.setId(review.getId());
+        dto.setOrderId(review.getOrder().getId());
         dto.setCustomerId(review.getCustomer().getId());
-        dto.setProductId(review.getProduct().getId());
+        dto.setProductId(review.getProduct() != null ? review.getProduct().getId() : null);
+        dto.setVariantId(review.getVariant() != null ? review.getVariant().getId() : null);
         dto.setRating(review.getRating());
         dto.setComment(review.getComment());
         dto.setCreatedAt(review.getCreatedAt());
-        dto.setUpdatedAt(review.getUpdatedAt());
         return dto;
     }
 
     public static Review toEntity(ReviewDto dto) {
         if (dto == null) {
-            throw new IllegalArgumentException("ReviewDto cannot be null");
+            throw new IllegalArgumentException("ReviewDto cannot be null for mapping to entity");
         }
 
         Review review = new Review();
         review.setId(dto.getId());
         review.setRating(dto.getRating());
         review.setComment(dto.getComment());
-        // Relationships (customer, product, order) set in service
         return review;
     }
 }

@@ -27,6 +27,8 @@ public class ProductDto {
 
     private UUID variantId;
 
+    private Integer stock;
+
     private Double price;
     private List<CategoryDto> categories;
     private Date createdAt;

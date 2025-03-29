@@ -23,6 +23,7 @@ public class ProductMapper {
         if (product.getStore() != null) {
             dto.setStoreId(product.getStore().getId());
         }
+        dto.setStock(product.getStock());
         return dto;
     }
 
@@ -36,6 +37,7 @@ public class ProductMapper {
         product.setName(dto.getName());
         product.setDescription(dto.getDescription());
         product.setPrice(dto.getPrice());
+        product.setStock(dto.getStock());
         // Store association handled in service layer
         return product;
     }

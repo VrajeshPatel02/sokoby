@@ -43,14 +43,15 @@ public class OrderServiceImpl implements OrderService {
     private final DiscountRepository discountRepository;
     private final PaymentRepository paymentRepository;
     private final PaymentService paymentService;
-    @Value("${stripe.secret.key}")
-    private String stripeSecretKey;
+    private final ProductRepository productRepository;
 
 
     @Autowired
     public OrderServiceImpl(OrderRepository orderRepository, StoreRepository storeRepository,
                             CustomerRepository customerRepository, VariantRepository variantRepository,
-                            InventoryService inventoryService, DiscountRepository discountRepository, PaymentRepository paymentRepository, PaymentService paymentService) {
+                            InventoryService inventoryService, DiscountRepository discountRepository,
+                            PaymentRepository paymentRepository, PaymentService paymentService,
+                            ProductRepository productRepository){
         this.orderRepository = orderRepository;
         this.storeRepository = storeRepository;
         this.customerRepository = customerRepository;
@@ -59,7 +60,7 @@ public class OrderServiceImpl implements OrderService {
         this.discountRepository = discountRepository;
         this.paymentRepository = paymentRepository;
         this.paymentService = paymentService;
-        Stripe.apiKey = stripeSecretKey;
+        this.productRepository = productRepository;
     }
 
     @Override
@@ -81,17 +82,30 @@ public class OrderServiceImpl implements OrderService {
         order.setStore(store);
         order.setCustomer(customer);
         order.setShippingAddress(AddressMapper.toEntity(dto.getShippingAddress()));
-        order.setStatus(OrderStatus.PLACED);
+        order.setStatus(OrderStatus.PAYMENT_PENDING);
 
         dto.getOrderItems().forEach(itemDto -> {
-            Variant variant = variantRepository.findById(itemDto.getVariantId())
-                    .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
-            if (!inventoryService.isAvailable(variant.getId(), itemDto.getQuantity())) {
-                throw new MerchantException("Insufficient stock for variant: " + variant.getId(), "INSUFFICIENT_STOCK");
-            }
             OrderItem item = new OrderItem();
-            item.setVariant(variant);
             item.setQuantity(itemDto.getQuantity());
+
+            if (itemDto.getProductId() != null && itemDto.getVariantId() == null) {
+                Product product = productRepository.findById(itemDto.getProductId())
+                        .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
+                if (!inventoryService.isAvailableForProduct(product.getId(), itemDto.getQuantity())) {
+                    throw new MerchantException("Insufficient stock for product: " + product.getId(), "INSUFFICIENT_STOCK");
+                }
+                item.setProduct(product);
+            } else if (itemDto.getVariantId() != null && itemDto.getProductId() == null) {
+                Variant variant = variantRepository.findById(itemDto.getVariantId())
+                        .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
+                if (!inventoryService.isAvailable(variant.getId(), itemDto.getQuantity())) {
+                    throw new MerchantException("Insufficient stock for variant: " + variant.getId(), "INSUFFICIENT_STOCK");
+                }
+                item.setVariant(variant);
+            } else {
+                throw new MerchantException("Order item must specify exactly one of productId or variantId", "INVALID_ORDER_ITEM");
+            }
+
             order.addOrderItem(item);
         });
 
@@ -101,18 +115,23 @@ public class OrderServiceImpl implements OrderService {
             order.setDiscount(discount);
         }
 
-        order.calculateTotals();
-        Order savedOrder = orderRepository.save(order);
+        try {
+            order.calculateTotals();
+            Order savedOrder = orderRepository.save(order);
 
-        // Create payment session (no paymentMethodId needed here)
-        PaymentDto payment = paymentService.createPayment(savedOrder.getId(), null);
-        // Inventory reservation deferred to webhook confirmation
+            // Create payment session
+            String checkoutUrl = paymentService.createPaymentSession(savedOrder.getId());
 
-        logger.info("Created order {} with payment session for customer {} in store {}",
-                savedOrder.getId(), customer.getId(), store.getId());
-        OrderDto orderDto = OrderMapper.toDto(savedOrder);
-        orderDto.setPaymentMethodId(payment.getStripeCheckoutSessionId()); // Return session URL
-        return orderDto;
+            logger.info("Created order {} with Stripe Checkout Session for customer {} in store {}",
+                    savedOrder.getId(), customer.getId(), store.getId());
+
+            OrderDto orderDto = OrderMapper.toDto(savedOrder);
+            orderDto.setPaymentUrl(checkoutUrl); // Return the Stripe session URL to the frontend
+            return orderDto;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

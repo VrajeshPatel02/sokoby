@@ -55,6 +55,9 @@ public class Product {
     @Column(name = "updated_at")
     private Date updatedAt;
 
+    @Column(name = "stock")
+    private Integer stock;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();

@@ -30,9 +30,6 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
 
-    @Value("${stripe.secret.key}")
-    private String stripeSecretKey;
-
     @Value("${app.success.url}") // e.g., http://localhost:8080/payment/success
     private String successUrl;
 
@@ -40,15 +37,15 @@ public class PaymentServiceImpl implements PaymentService {
     private String cancelUrl;
 
     @Autowired
-    public PaymentServiceImpl(PaymentRepository paymentRepository, OrderRepository orderRepository) {
+    public PaymentServiceImpl(PaymentRepository paymentRepository, OrderRepository orderRepository, @Value("${stripe.secret.key}") String stripeSecretKey)  {
         this.paymentRepository = paymentRepository;
         this.orderRepository = orderRepository;
         Stripe.apiKey = stripeSecretKey; // Platform's secret key
     }
 
-    @Override
     @Transactional
-    public PaymentDto createPayment(UUID orderId, String paymentMethodId) {
+    @Override
+    public String createPaymentSession(UUID orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
 
@@ -57,13 +54,12 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         try {
-            // Create Stripe Checkout Session
+            // ✅ Create Stripe Checkout Session
             SessionCreateParams params = SessionCreateParams.builder()
-                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD) // Debit/Credit Cards
-                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.PAYPAL) // PayPal if enabled
+                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD) // Cards
                     .setMode(SessionCreateParams.Mode.PAYMENT)
-                    .setSuccessUrl(successUrl + "?orderId=" + orderId)
-                    .setCancelUrl(cancelUrl + "?orderId=" + orderId)
+                    .setSuccessUrl(successUrl + "?orderId=" + order.getId()) // Redirect user on success
+                    .setCancelUrl(cancelUrl + "?orderId=" + order.getId()) // Redirect on cancel
                     .addLineItem(
                             SessionCreateParams.LineItem.builder()
                                     .setPriceData(
@@ -87,11 +83,64 @@ public class PaymentServiceImpl implements PaymentService {
                             .setStripeAccount(order.getStore().getStripeAccountId())
                             .build());
 
+            logger.info("Checkout session created for order {}: {}", orderId, session.getUrl());
+            return session.getUrl(); // ✅ Return checkout session URL
+        } catch (StripeException e) {
+            logger.error("Stripe payment error for order {}: {}", orderId, e.getMessage());
+            throw new MerchantException("Payment processing failed: " + e.getMessage(), "PAYMENT_PROCESSING_ERROR");
+        }
+    }
+
+
+
+    @Override
+    @Transactional
+    public PaymentDto createPayment(UUID orderId, String paymentMethodId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
+
+        if (order.getStore().getStripeAccountId() == null) {
+            throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
+        }
+
+        try {
+            // Create Stripe Checkout Session
+            SessionCreateParams params = SessionCreateParams.builder()
+                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD) // Debit/Credit Cards
+//                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.PAYPAL) // PayPal if enabled
+                    .setMode(SessionCreateParams.Mode.PAYMENT)
+                    .setSuccessUrl(successUrl + "?orderId=" + order.getId())
+                    .setCancelUrl(cancelUrl + "?orderId=" + order.getId())
+                    .addLineItem(
+                            SessionCreateParams.LineItem.builder()
+                                    .setPriceData(
+                                            SessionCreateParams.LineItem.PriceData.builder()
+                                                    .setCurrency("usd")
+                                                    .setUnitAmount((long) (order.getTotalAmount() * 100))
+                                                    .setProductData(
+                                                            SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                                                    .setName("Order #" + order.getId())
+                                                                    .build()
+                                                    )
+                                                    .build()
+                                    )
+                                    .setQuantity(1L)
+                                    .build()
+                    )
+                    .build();
+
+            Session session = Session.create(params,
+                    com.stripe.net.RequestOptions.builder()
+                            .setStripeAccount(order.getStore().getStripeAccountId())
+                            .build());
+
+            System.out.println("Checkout session created: " + session.getUrl());
+
             Payment payment = new Payment();
             payment.setOrder(order);
             payment.setAmount(order.getTotalAmount());
             payment.setStripeCheckoutSessionId(session.getId());
-            payment.setStatus(PaymentStatus.valueOf("pending")); // Initial status; updated via webhook
+            payment.setStatus(PaymentStatus.valueOf("pending".toUpperCase())); // Initial status; updated via webhook
 
             Payment savedPayment = paymentRepository.save(payment);
             logger.info("Created payment session {} for order {}", savedPayment.getId(), orderId);
@@ -120,4 +169,17 @@ public class PaymentServiceImpl implements PaymentService {
         logger.info("Retrieved payment for order ID: {}", orderId);
         return PaymentMapper.toDto(payment);
     }
+
+    @Override
+    @Transactional
+    public void confirmPayment(String sessionId) {
+        Payment payment = paymentRepository.findByStripeCheckoutSessionId(sessionId)
+                .orElseThrow(() -> new MerchantException("Payment not found for session", "PAYMENT_NOT_FOUND"));
+
+        payment.setStatus(PaymentStatus.COMPETED);
+        paymentRepository.save(payment);
+
+        logger.info("Payment confirmed for session {}", sessionId);
+    }
+
 }

@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -34,7 +33,7 @@ public class VariantServiceImpl implements VariantService {
 
     private final VariantRepository variantRepository;
     private final ProductRepository productRepository;
-    private final InventoryService inventoryService; // Added for inventory integration
+    private final InventoryService inventoryService;
 
     @Autowired
     public VariantServiceImpl(VariantRepository variantRepository,
@@ -60,15 +59,12 @@ public class VariantServiceImpl implements VariantService {
         try {
             Variant savedVariant = variantRepository.save(variant);
 
-            // Create an InventoryItem for the variant and set initial stock
-            InventoryItem inventoryItem = inventoryService.createInventoryItem(savedVariant.getId(), dto.getStockQuantity());
+            // Create an InventoryItem for the variant
+            InventoryItem inventoryItem = inventoryService.createInventoryItemForVariant(savedVariant.getId(), dto.getStockQuantity());
 
             savedVariant.setInventoryItem(inventoryItem);
             Variant saved = variantRepository.save(savedVariant);
             logger.info("Created variant {} for product {}", dto.getName(), productId);
-
-//            Variant variantById = variantRepository.findById(savedVariant.getId())
-//                    .orElseThrow(()-> new MerchantException("Failed to save variant", "FAILED_TO_FETCH"));
             return VariantMapper.toDto(saved);
         } catch (Exception e) {
             logger.error("Failed to create variant for product {}: {}", productId, e.getMessage());
@@ -151,8 +147,7 @@ public class VariantServiceImpl implements VariantService {
             variant.setPrice(dto.getPrice());
         }
         if (dto.getStockQuantity() != null && dto.getStockQuantity() >= 0) {
-            // Update stock via InventoryService instead of Variant
-            inventoryService.updateStock(id, dto.getStockQuantity());
+            inventoryService.updateStockForVariant(id, dto.getStockQuantity());
         }
         if (dto.getSku() != null && !dto.getSku().equals(variant.getSku())) {
             validateSku(dto.getSku());
@@ -177,7 +172,7 @@ public class VariantServiceImpl implements VariantService {
                 .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
         try {
             variantRepository.deleteById(id);
-            // Optionally, delete associated InventoryItem if needed
+            // Optionally delete InventoryItem if required
             logger.info("Deleted variant with ID: {}", id);
         } catch (Exception e) {
             logger.error("Failed to delete variant with ID: {}", id, e);
@@ -193,7 +188,7 @@ public class VariantServiceImpl implements VariantService {
         if (!inventoryService.isAvailable(id, quantity)) {
             throw new MerchantException("Insufficient stock", "INSUFFICIENT_STOCK");
         }
-        inventoryService.reserveStock(id, quantity); // Use reserveStock instead of direct reduction
+        inventoryService.reserveStock(id, quantity);
         logger.info("Reduced stock for variant {} by {}", id, quantity);
     }
 

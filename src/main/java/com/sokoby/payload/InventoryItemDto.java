@@ -14,4 +14,5 @@ public class InventoryItemDto {
     private UUID variantId;
     private Integer stock; // Total available stock across all locations
     private Date createdAt;
+    private UUID productId;
 }

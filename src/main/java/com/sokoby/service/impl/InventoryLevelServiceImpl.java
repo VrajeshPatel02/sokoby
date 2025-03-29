@@ -52,7 +52,7 @@ public class InventoryLevelServiceImpl implements InventoryLevelService {
 
         InventoryLevel level = new InventoryLevel();
         level.setInventoryItem(item);
-        level.setLocation(location);
+        level.setLocationId(location.getId());
         level.setAvailableQuantity(initialStock != null ? initialStock : 0);
         return inventoryLevelRepository.save(level);
     }

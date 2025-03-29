@@ -7,7 +7,7 @@ public final class SecurityConstants {
 
     // Public endpoints
     public static final String[] PUBLIC_ENDPOINTS = {
-        "/api/auth/**","/api/customer/create/{id}"
+        "/api/auth/**","/api/customer/create/{id}", "/payment/**"
     };
 
     // Merchant endpoints

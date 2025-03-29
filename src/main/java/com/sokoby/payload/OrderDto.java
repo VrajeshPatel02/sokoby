@@ -48,4 +48,6 @@ public class OrderDto {
     private Double subtotal;
 
     private Double discountAmount;
+
+    private String paymentUrl;
 }
