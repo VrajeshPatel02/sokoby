@@ -7,6 +7,7 @@ import com.sokoby.mapper.StoreMapper;
 import com.sokoby.payload.StoreDto;
 import com.sokoby.repository.MerchantRepository;
 import com.sokoby.repository.StoreRepository;
+import com.sokoby.service.ImageService;
 import com.sokoby.service.StoreService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,15 +28,16 @@ public class StoreServiceImpl implements StoreService {
 
     private final StoreRepository storeRepository;
     private final MerchantRepository merchantRepository;
-
+    private final ImageService imageService;
     @Autowired
-    public StoreServiceImpl(StoreRepository storeRepository, MerchantRepository merchantRepository) {
+    public StoreServiceImpl(StoreRepository storeRepository, MerchantRepository merchantRepository, ImageService imageService) {
         this.storeRepository = storeRepository;
         this.merchantRepository = merchantRepository;
+        this.imageService = imageService;
     }
 
     @Override
-    public StoreDto createStore(UUID merchantId, StoreDto dto) {
+    public StoreDto createStore(UUID merchantId, StoreDto dto, MultipartFile logo) {
         if (dto.getName() == null || dto.getName().trim().isEmpty()) {
             throw new MerchantException("Store name cannot be null or empty", "INVALID_STORE_NAME");
         }
@@ -48,10 +51,14 @@ public class StoreServiceImpl implements StoreService {
         Store store = StoreMapper.toEntity(dto);
         store.setMerchant(merchant);
 
+
         try {
             Store savedStore = storeRepository.save(store);
             logger.info("Created store for merchant {} with name: {}", merchantId, dto.getName());
-            return StoreMapper.toDto(savedStore);
+            String storeLogo = imageService.uploadStoreLogoFile(logo, "sokoby", savedStore.getId());
+            savedStore.setImageUrl(storeLogo);
+            Store saved = storeRepository.save(savedStore);
+            return StoreMapper.toDto(saved);
         } catch (Exception e) {
             logger.error("Failed to create store for merchant {}: {}", merchantId, e.getMessage());
             throw new MerchantException("Failed to create store", "STORE_CREATION_ERROR");

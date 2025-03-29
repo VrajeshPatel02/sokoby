@@ -29,4 +29,9 @@ public class StoreDto {
     private Date createdAt;
     private Date updatedAt;
     private UUID merchantId; // To associate with Merchant without exposing the entity
+    private String productType;
+    private String businessType;
+    private String revenue;
+    private String industry;
+    private String imageUrl;
 }

@@ -9,4 +9,5 @@ public interface ImageService {
     ImageDto uploadImageFile(MultipartFile file, String bucketName, UUID productId);
     List<ImageDto> getImagesByProduct(UUID productId);
     boolean deleteImage(UUID imageId, String bucketName,UUID productId);
+    String uploadStoreLogoFile(MultipartFile logo, String bucketName, UUID storeId);
 }

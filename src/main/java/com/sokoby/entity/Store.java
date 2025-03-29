@@ -39,6 +39,7 @@ public class Store {
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL)
     private List<Category> categories;
 
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)
     private Date createdAt;
@@ -49,6 +50,21 @@ public class Store {
 
     @Column(name = "domain",nullable = false)
     private String domain;
+
+    @Column(name = "product_type")
+    private String productType;
+
+    @Column(name = "business_type")
+    private String businessType;
+
+    @Column(name = "revenue")
+    private String revenue;
+
+    @Column(name = "industry")
+    private String industry;
+
+    @Column(name="store_logo_url", length = 2000)
+    private String imageUrl;
 
     @PrePersist
     protected void onCreate() {

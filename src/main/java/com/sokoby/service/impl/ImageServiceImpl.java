@@ -2,10 +2,13 @@ package com.sokoby.service.impl;
 
 import com.sokoby.entity.Product;
 import com.sokoby.entity.ProductImage;
+import com.sokoby.entity.Store;
+import com.sokoby.exception.MerchantException;
 import com.sokoby.mapper.ProductImageMapper;
 import com.sokoby.payload.ImageDto;
 import com.sokoby.repository.ProductImageRepository;
 import com.sokoby.repository.ProductRepository;
+import com.sokoby.repository.StoreRepository;
 import com.sokoby.service.BucketService;
 import com.sokoby.service.ImageService;
 import org.springframework.stereotype.Service;
@@ -17,15 +20,17 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-public class ProductImageServiceImpl implements ImageService {
+public class ImageServiceImpl implements ImageService {
     private final ProductImageRepository productImageRepository;
     private final ProductRepository productRepository;
     private final BucketService bucketService;
+    private final StoreRepository storeRepository;
 
-    public ProductImageServiceImpl(ProductImageRepository productImageRepository, ProductRepository productRepository, BucketService bucketService) {
+    public ImageServiceImpl(ProductImageRepository productImageRepository, ProductRepository productRepository, BucketService bucketService, StoreRepository storeRepository) {
         this.productImageRepository = productImageRepository;
         this.productRepository = productRepository;
         this.bucketService = bucketService;
+        this.storeRepository = storeRepository;
     }
 
     @Override
@@ -78,6 +83,21 @@ public class ProductImageServiceImpl implements ImageService {
         }
 
         return false; // Return false if the image wasn't found or deletion failed
+    }
+
+    @Override
+    public String uploadStoreLogoFile(MultipartFile logo, String bucketName, UUID storeId) {
+        Optional<Store> store = storeRepository.findById(storeId);
+        if (store.isPresent()){
+            String imageUrl = "";
+            try {
+                imageUrl = bucketService.uploadFile(logo, bucketName);
+                return imageUrl;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        throw  new MerchantException("Store Not Found", "STORE_NOT_FOUND");
     }
 
     private String extractFileNameFromUrl(String imageUrl) {

@@ -8,13 +8,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/store")
+@RequestMapping(value = "/api/store", consumes = {"multipart/form-data", "application/octet-stream"})
 public class StoreController {
     private final StoreService storeService;
 
@@ -26,9 +28,11 @@ public class StoreController {
     @PostMapping("/create/{merchantId}")
     public ResponseEntity<StoreDto> createStore(
             @PathVariable UUID merchantId,
-            @RequestBody StoreDto dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(storeService.createStore(merchantId, dto));
+            @ModelAttribute StoreDto dto,
+            @RequestParam("logo") MultipartFile logo) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(storeService.createStore(merchantId, dto, logo));
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<StoreDto> getStoreById(@PathVariable UUID id) {
