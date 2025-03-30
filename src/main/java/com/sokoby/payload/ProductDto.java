@@ -22,7 +22,7 @@ public class ProductDto {
 
     private UUID storeId;
 
-    private String imageUrl;
+    private List<ImageDto> imageUrls;
     private String description;
 
     private UUID variantId;
@@ -30,7 +30,7 @@ public class ProductDto {
     private Integer stock;
 
     private Double price;
-    private List<CategoryDto> categories;
+    private List<CollectionDto> collections;
     private Date createdAt;
     private Date updatedAt;
 }

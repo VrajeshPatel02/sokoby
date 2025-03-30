@@ -1,7 +1,10 @@
 package com.sokoby.mapper;
 
 import com.sokoby.entity.Product;
+import com.sokoby.payload.ImageDto;
 import com.sokoby.payload.ProductDto;
+
+import java.util.List;
 
 public class ProductMapper {
     private ProductMapper() {
@@ -24,6 +27,26 @@ public class ProductMapper {
             dto.setStoreId(product.getStore().getId());
         }
         dto.setStock(product.getStock());
+        return dto;
+    }
+
+    public static ProductDto toDtoWithImageDto(Product product, List<ImageDto> imageDto) {
+        if (product == null) {
+            throw new IllegalArgumentException("Product entity cannot be null");
+        }
+
+        ProductDto dto = new ProductDto();
+        dto.setId(product.getId());
+        dto.setName(product.getName());
+        dto.setDescription(product.getDescription());
+        dto.setPrice(product.getPrice());
+        dto.setCreatedAt(product.getCreatedAt());
+        dto.setUpdatedAt(product.getUpdatedAt());
+        if (product.getStore() != null) {
+            dto.setStoreId(product.getStore().getId());
+        }
+        dto.setStock(product.getStock());
+        dto.setImageUrls(imageDto);
         return dto;
     }
 

@@ -1,25 +1,17 @@
 package com.sokoby.controller;
 
-import com.sokoby.repository.OrderRepository;
-import com.sokoby.repository.PaymentRepository;
 import com.sokoby.service.PaymentService;
+import com.sokoby.service.WebhookService;
 import com.stripe.exception.SignatureVerificationException;
-import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
 import com.stripe.net.Webhook;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.slf4j.Logger;
-import com.stripe.model.checkout.Session;
-import java.util.UUID;
-import com.sokoby.entity.Order;
-import com.sokoby.entity.Payment;
-import com.sokoby.exception.MerchantException;
-import com.sokoby.enums.PaymentStatus;
 
 @RestController
 @RequestMapping("/payment/webhook")
@@ -31,24 +23,50 @@ public class StripeWebhookController {
     private String stripeWebhookSecret;
 
     @Autowired
-    private PaymentService paymentService;
+    private WebhookService webhookService;
 
     @PostMapping
     public ResponseEntity<String> handleWebhook(@RequestBody String payload, @RequestHeader("Stripe-Signature") String sigHeader) {
         try {
-            Event event = Webhook.constructEvent(payload, sigHeader, stripeWebhookSecret);
+            logger.info("Received webhook with payload length: {} bytes", payload.length());
 
-            if ("checkout.session.completed".equals(event.getType())) {
-                Session session = (Session) event.getDataObjectDeserializer().getObject().orElse(null);
-                if (session != null) {
-                    paymentService.confirmPayment(session.getId());
+            // Construct event from payload
+            Event event = Webhook.constructEvent(payload, sigHeader, stripeWebhookSecret);
+            logger.info("Event constructed with type: '{}'", event.getType());
+
+            try {
+                switch (event.getType()) {
+                    case "checkout.session.completed":
+                        logger.info("Handling checkout.session.completed event");
+                        webhookService.handleCheckoutSessionCompleted(event, payload);
+
+                    case "payment_intent.succeeded":
+                        logger.info("Payment intent succeeded event received");
+                        WebhookService.handlePaymentIntentSucceeded(event, payload);
+                        break;
+
+                    case "payment_intent.payment_failed":
+                        logger.info("Payment intent failed event received");
+                        webhookService.handlePaymentIntentFailed(event, payload);
+                        break;
+
+                    default:
+                        logger.info("Unhandled event type: '{}'", event.getType());
+                        break;
                 }
+            } catch (Exception e) {
+                logger.error("Error processing event of type {}: {}", event.getType(), e.getMessage(), e);
+                // Still return 200 to acknowledge receipt to Stripe
+                return ResponseEntity.ok("Event received but error during processing: " + e.getMessage());
             }
 
-            return ResponseEntity.ok("Webhook received");
+            return ResponseEntity.ok("Webhook processed successfully");
         } catch (SignatureVerificationException e) {
             logger.error("Invalid webhook signature: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid signature");
+        } catch (Exception e) {
+            logger.error("Error processing webhook: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing webhook");
         }
     }
 }

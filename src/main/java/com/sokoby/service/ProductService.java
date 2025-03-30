@@ -3,6 +3,7 @@ package com.sokoby.service;
 import com.sokoby.payload.ProductDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,4 +22,6 @@ public interface ProductService {
     ProductDto updateProduct(UUID id, ProductDto dto);
 
     void deleteProduct(UUID id);
+
+    ProductDto createProductWithImages(UUID  storeId, ProductDto dto, MultipartFile[] files);
 }

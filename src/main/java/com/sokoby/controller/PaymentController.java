@@ -47,9 +47,8 @@ public class PaymentController {
     }
 
     @PostMapping("/order/{orderId}")
-    public ResponseEntity<PaymentDto> createPayment(@PathVariable UUID orderId,
-                                                    @RequestBody PaymentRequest paymentRequest) {
-        PaymentDto payment = paymentService.createPayment(orderId, paymentRequest.getPaymentMethodId());
+    public ResponseEntity<PaymentDto> createPayment(@PathVariable UUID orderId) {
+        PaymentDto payment = paymentService.createPayment(orderId);
         return new ResponseEntity<>(payment, HttpStatus.CREATED);
     }
 

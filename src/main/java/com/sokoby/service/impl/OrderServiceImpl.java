@@ -120,13 +120,13 @@ public class OrderServiceImpl implements OrderService {
             Order savedOrder = orderRepository.save(order);
 
             // Create payment session
-            String checkoutUrl = paymentService.createPaymentSession(savedOrder.getId());
+            PaymentDto paymentDto = paymentService.createPayment(savedOrder.getId());
 
             logger.info("Created order {} with Stripe Checkout Session for customer {} in store {}",
                     savedOrder.getId(), customer.getId(), store.getId());
 
             OrderDto orderDto = OrderMapper.toDto(savedOrder);
-            orderDto.setPaymentUrl(checkoutUrl); // Return the Stripe session URL to the frontend
+            orderDto.setPaymentUrl(paymentDto.getStripeCheckoutUrl()); // Return the Stripe session URL to the frontend
             return orderDto;
         } catch (Exception e) {
             e.printStackTrace();

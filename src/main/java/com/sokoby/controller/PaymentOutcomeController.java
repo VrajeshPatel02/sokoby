@@ -37,12 +37,8 @@ public class PaymentOutcomeController {
             // For testing, log success and optionally update order status
             logger.info("Payment successful for order: {}", orderId);
 
-            // Optional: Update order status if not handled by webhook
-            // Uncomment if webhook isn’t updating status
-            /*
             order.setStatus(OrderStatus.PLACED);
             orderRepository.save(order);
-            */
 
             return ResponseEntity.ok("Payment successful for order: " + orderId);
         } catch (MerchantException e) {
@@ -60,11 +56,8 @@ public class PaymentOutcomeController {
             // For testing, log cancellation and optionally update order status
             logger.info("Payment cancelled for order: {}", orderId);
 
-            // Optional: Mark order as cancelled if desired
-            /*
             order.setStatus(OrderStatus.CANCELED);
             orderRepository.save(order);
-            */
 
             return ResponseEntity.ok("Payment cancelled for order: " + orderId);
         } catch (MerchantException e) {

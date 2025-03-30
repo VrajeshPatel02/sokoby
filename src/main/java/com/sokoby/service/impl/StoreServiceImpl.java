@@ -12,6 +12,7 @@ import com.sokoby.service.StoreService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +30,10 @@ public class StoreServiceImpl implements StoreService {
     private final StoreRepository storeRepository;
     private final MerchantRepository merchantRepository;
     private final ImageService imageService;
+
+    @Value("${aws.s3.bucket-name}")
+    private String bucketName;
+
     @Autowired
     public StoreServiceImpl(StoreRepository storeRepository, MerchantRepository merchantRepository, ImageService imageService) {
         this.storeRepository = storeRepository;
@@ -55,7 +60,7 @@ public class StoreServiceImpl implements StoreService {
         try {
             Store savedStore = storeRepository.save(store);
             logger.info("Created store for merchant {} with name: {}", merchantId, dto.getName());
-            String storeLogo = imageService.uploadStoreLogoFile(logo, "sokoby", savedStore.getId());
+            String storeLogo = imageService.uploadStoreLogoFile(logo, bucketName, savedStore.getId());
             savedStore.setImageUrl(storeLogo);
             Store saved = storeRepository.save(savedStore);
             return StoreMapper.toDto(saved);

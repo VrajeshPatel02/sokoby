@@ -15,4 +15,6 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
   Optional<Payment> findByOrderId(UUID orderId);
 
   Optional<Payment> findByStripeCheckoutSessionId(String id);
+
+    Optional<Payment> findByStripePaymentIntentId(String paymentIntentId);
 }

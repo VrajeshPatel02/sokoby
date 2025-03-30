@@ -2,6 +2,7 @@ package com.sokoby.service.impl;
 
 import com.sokoby.entity.Order;
 import com.sokoby.entity.Payment;
+import com.sokoby.enums.OrderStatus;
 import com.sokoby.enums.PaymentStatus;
 import com.sokoby.exception.MerchantException;
 import com.sokoby.mapper.PaymentMapper;
@@ -20,6 +21,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -92,10 +95,9 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
 
-
     @Override
     @Transactional
-    public PaymentDto createPayment(UUID orderId, String paymentMethodId) {
+    public PaymentDto createPayment(UUID orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
 
@@ -134,7 +136,7 @@ public class PaymentServiceImpl implements PaymentService {
                             .setStripeAccount(order.getStore().getStripeAccountId())
                             .build());
 
-            System.out.println("Checkout session created: " + session.getUrl());
+            System.out.println("session Id: " + session.getId());
 
             Payment payment = new Payment();
             payment.setOrder(order);
@@ -146,8 +148,9 @@ public class PaymentServiceImpl implements PaymentService {
             logger.info("Created payment session {} for order {}", savedPayment.getId(), orderId);
 
             PaymentDto dto = PaymentMapper.toDto(savedPayment);
-            dto.setStripeCheckoutSessionId(session.getUrl()); // Return URL for redirection
-            return dto;
+            dto.setStripeCheckoutSessionId(session.getId());
+            dto.setStripeCheckoutUrl(session.getUrl()); // Return URL for redirection
+            return  dto;
         } catch (StripeException e) {
             logger.error("Stripe payment error for order {}: {}", orderId, e.getMessage());
             throw new MerchantException("Payment processing failed: " + e.getMessage(), "PAYMENT_PROCESSING_ERROR");
@@ -172,14 +175,61 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public void confirmPayment(String sessionId) {
+    public PaymentDto confirmPayment(String sessionId) {
         Payment payment = paymentRepository.findByStripeCheckoutSessionId(sessionId)
                 .orElseThrow(() -> new MerchantException("Payment not found for session", "PAYMENT_NOT_FOUND"));
 
         payment.setStatus(PaymentStatus.COMPETED);
         paymentRepository.save(payment);
-
         logger.info("Payment confirmed for session {}", sessionId);
+
+        return PaymentMapper.toDto(payment);
     }
+
+    @Transactional
+    @Override
+    public void handleFailedPayment(String paymentIntentId, String errorMessage, Map<String, String> metadata) {
+        logger.info("Handling failed payment for payment intent: {}", paymentIntentId);
+
+        // Find payment by payment intent ID
+        Optional<Payment> paymentOpt = paymentRepository.findByStripePaymentIntentId(paymentIntentId);
+        if (paymentOpt.isPresent()) {
+            Payment payment = paymentOpt.get();
+            payment.setStatus(PaymentStatus.FAILED);
+            payment.setErrorMessage(errorMessage);
+            paymentRepository.save(payment);
+
+            // Update order status
+            if (payment.getOrder() != null) {
+                Order order = payment.getOrder();
+                order.setStatus(OrderStatus.PAYMENT_FAILED);
+                orderRepository.save(order);
+
+            }
+
+            logger.info("Payment marked as failed for payment intent: {}", paymentIntentId);
+        } else if (metadata != null && metadata.containsKey("order_id")) {
+            // If payment not found but we have order info in metadata
+            String orderId = metadata.get("order_id");
+            Optional<Order> orderOpt = orderRepository.findById(UUID.fromString(orderId));
+
+            if (orderOpt.isPresent()) {
+                Order order = orderOpt.get();
+                order.setStatus(OrderStatus.PAYMENT_FAILED);
+                orderRepository.save(order);
+
+                // Create a new payment record for the failed attempt
+                Payment payment = new Payment();
+                payment.setOrder(order);
+                payment.setAmount(order.getTotalAmount());
+                payment.setStatus(PaymentStatus.FAILED);
+                payment.setErrorMessage(errorMessage);
+                paymentRepository.save(payment);
+            }
+        } else {
+            logger.warn("Could not find payment or order for failed payment intent: {}", paymentIntentId);
+        }
+    }
+
 
 }

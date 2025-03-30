@@ -36,7 +36,7 @@ public class CartMapper {
 
     public static CartDto toDtoWithItems(Cart cart) {
         CartDto dto = toDto(cart);
-        if(cart.getCartItems().isEmpty()){
+        if(cart.getCartItems().size() == 0){
             return dto;
         }else {
             dto.setCartItems(cart.getCartItems().stream()

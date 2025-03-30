@@ -15,6 +15,9 @@ public class PaymentDto {
     private String currency;
     private String stripePaymentIntentId;
     private String status;
-    private String stripeCheckoutSessionId; // Add getter/setter
+    private String stripeCheckoutUrl;
+    private String stripeCheckoutSessionId;
+    private String errorMessage;
+    private Date updatedAt;
     private Date createdAt;
 }

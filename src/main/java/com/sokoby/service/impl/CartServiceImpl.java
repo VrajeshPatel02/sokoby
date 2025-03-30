@@ -23,6 +23,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -96,7 +97,7 @@ public class CartServiceImpl implements CartService {
             cartItemRepository.save(cartItem);
 
             logger.info("Added item to cart for customer ID: {}", customerId);
-            return CartMapper.toDtoWithItems(cart);
+            return CartMapper.toDto(cart);
         } catch (Exception e) {
             logger.error("Failed to add item to cart for customer {}: {}", customerId, e.getMessage());
             throw new MerchantException("Failed to add item to cart", "CART_ITEM_ADD_ERROR");

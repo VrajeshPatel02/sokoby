@@ -5,9 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Entity
 @Table(name = "products")
@@ -30,9 +28,6 @@ public class Product {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "image_url") // Stored in AWS S3
-    private String imageUrl;
-
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     private List<Variant> variants;
 
@@ -45,7 +40,7 @@ public class Product {
             joinColumns = @JoinColumn(name = "product_id"),
             inverseJoinColumns = @JoinColumn(name = "category_id")
     )
-    private List<Category> categories;
+    private List<Collection> collections;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -57,6 +52,9 @@ public class Product {
 
     @Column(name = "stock")
     private Integer stock;
+
+    @OneToMany(mappedBy = "product", orphanRemoval = true)
+    private List<ProductImage> productImages = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

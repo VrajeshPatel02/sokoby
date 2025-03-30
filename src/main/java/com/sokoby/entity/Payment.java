@@ -30,9 +30,6 @@ public class Payment {
     @Column(name = "currency", nullable = false)
     private String currency = "usd"; // Default to USD, adjust as needed
 
-    @Column(name = "stripe_payment_intent_id", nullable = false)
-    private String stripePaymentIntentId;
-
     @Column(name = "status", nullable = false)
     private PaymentStatus status;
 
@@ -46,6 +43,9 @@ public class Payment {
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
     private Date updatedAt;
+
+    @Column(name = "error_message")
+    private String errorMessage;
 
     @PrePersist
     protected void onCreate() {

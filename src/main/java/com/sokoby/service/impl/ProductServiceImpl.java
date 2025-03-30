@@ -3,19 +3,26 @@ package com.sokoby.service.impl;
 import com.sokoby.entity.Product;
 import com.sokoby.entity.Store;
 import com.sokoby.exception.MerchantException;
+import com.sokoby.mapper.ProductImageMapper;
 import com.sokoby.mapper.ProductMapper;
+import com.sokoby.payload.ImageDto;
 import com.sokoby.payload.ProductDto;
 import com.sokoby.repository.ProductRepository;
 import com.sokoby.repository.StoreRepository;
+import com.sokoby.service.ImageService;
 import com.sokoby.service.ProductService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -26,12 +33,18 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final StoreRepository storeRepository;
+    private final ImageService imageService;
 
     @Autowired
-    public ProductServiceImpl(ProductRepository productRepository, StoreRepository storeRepository) {
+    public ProductServiceImpl(ProductRepository productRepository, StoreRepository storeRepository, ImageService imageService) {
         this.productRepository = productRepository;
         this.storeRepository = storeRepository;
+        this.imageService = imageService;
     }
+
+
+    @Value("${aws.s3.bucket-name}")
+    private String bucketName;
 
     @Override
     public ProductDto createProduct(UUID storeId, ProductDto dto) {
@@ -146,5 +159,38 @@ public class ProductServiceImpl implements ProductService {
             logger.error("Failed to delete product with ID: {}", id, e);
             throw new MerchantException("Failed to delete product", "PRODUCT_DELETION_ERROR");
         }
+    }
+
+    @Override
+    public ProductDto createProductWithImages(UUID storeId, ProductDto dto, MultipartFile[] files) {
+
+        if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+            throw new MerchantException("Product name cannot be null or empty", "INVALID_PRODUCT_NAME");
+        }
+
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new MerchantException("Store not found", "STORE_NOT_FOUND"));
+
+
+        Product product = ProductMapper.toEntity(dto);
+        product.setStore(store);
+
+
+        try {
+            Product savedProduct = productRepository.save(product);
+            List<ImageDto> imageDto = new ArrayList<>();
+            if (files != null && files.length > 0) {
+                for (MultipartFile file : files) {
+                    ImageDto dto1 = imageService.uploadImageFile(file, bucketName, savedProduct.getId());
+                    imageDto.add(dto1);
+                }
+            }
+                logger.info("Created product {} for store {}", dto.getName(), storeId);
+                return ProductMapper.toDtoWithImageDto(savedProduct, imageDto);
+
+            } catch(Exception e){
+                logger.error("Failed to create product for store {}: {}", storeId, e.getMessage());
+                throw new MerchantException("Failed to create product", "PRODUCT_CREATION_ERROR");
+            }
     }
 }
