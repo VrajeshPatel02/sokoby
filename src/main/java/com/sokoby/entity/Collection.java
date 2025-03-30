@@ -14,7 +14,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class Category {
+public class Collection {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "id", nullable = false)
@@ -27,7 +27,7 @@ public class Category {
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
 
-    @ManyToMany(mappedBy = "categories")
+    @ManyToMany(mappedBy = "collections")
     private List<Product> products;
 
     @Temporal(TemporalType.TIMESTAMP)
