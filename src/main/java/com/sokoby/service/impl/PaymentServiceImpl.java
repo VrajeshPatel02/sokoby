@@ -10,6 +10,7 @@ import com.sokoby.payload.PaymentDto;
 import com.sokoby.repository.OrderRepository;
 import com.sokoby.repository.PaymentRepository;
 import com.sokoby.service.PaymentService;
+import com.sokoby.util.PasswordGenerator;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
@@ -141,6 +142,7 @@ public class PaymentServiceImpl implements PaymentService {
             Payment payment = new Payment();
             payment.setOrder(order);
             payment.setAmount(order.getTotalAmount());
+            payment.setStripePaymentIntentId("payment"+PasswordGenerator.generatePassword(10));
             payment.setStripeCheckoutSessionId(session.getId());
             payment.setStatus(PaymentStatus.valueOf("pending".toUpperCase())); // Initial status; updated via webhook
 

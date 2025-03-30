@@ -37,7 +37,7 @@ public class Store {
     private List<Product> products;
 
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL)
-    private List<Category> categories;
+    private List<Collection> categories;
 
 
     @Temporal(TemporalType.TIMESTAMP)

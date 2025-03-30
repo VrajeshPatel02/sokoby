@@ -36,6 +36,9 @@ public class Payment {
     @Column(name = "stripe_checkout_session_id")
     private String stripeCheckoutSessionId; // Add this field
 
+    @Column(name = "stripe_payment_intent_id")
+    private String stripePaymentIntentId; // Add this field
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)
     private Date createdAt;

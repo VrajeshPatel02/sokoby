@@ -1,7 +1,9 @@
 package com.sokoby.controller;
 
 import com.sokoby.payload.ImageDto;
+import com.sokoby.payload.StoreDto;
 import com.sokoby.service.ImageService;
+import com.sokoby.service.StoreService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,11 +12,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 @RestController
-@RequestMapping("/api/images")
+@RequestMapping(consumes = {"multipart/form-data", "application/octet-stream"})
 public class ImageController {
     @Autowired
     private ImageService imageService;
-    @PostMapping("/upload/file/{bucketName}/product/{productId}")
+
+    @Autowired
+    private StoreService storeService;
+    @PostMapping("api/image/upload/file/{bucketName}/product/{productId}")
     public ResponseEntity<ImageDto> uploadFile(@RequestParam MultipartFile file,
                                                @PathVariable String bucketName,
                                                @PathVariable UUID productId){
@@ -22,7 +27,7 @@ public class ImageController {
         return new ResponseEntity<>(imageDto, HttpStatus.OK);
     }
 
-    @DeleteMapping("/delete/file/{bucketName}/product/{productId}")
+    @DeleteMapping("api/image/delete/file/{bucketName}/product/{productId}")
     public ResponseEntity<?> deleteImage(@RequestParam UUID imageId,
                                          @PathVariable String bucketName,
                                          @PathVariable UUID productId) {
@@ -32,5 +37,13 @@ public class ImageController {
         } else {
             return new ResponseEntity<>("Failed to delete image.",HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @PostMapping("/api/store/create/{merchantId}")
+    public ResponseEntity<StoreDto> createStore(
+            @PathVariable UUID merchantId,
+            @ModelAttribute StoreDto dto,
+            @RequestParam("logo") MultipartFile logo) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(storeService.createStore(merchantId, dto, logo));
     }
 }

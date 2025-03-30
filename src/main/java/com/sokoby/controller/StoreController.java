@@ -16,21 +16,13 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.UUID;
 
 @RestController
-@RequestMapping(value = "/api/store", consumes = {"multipart/form-data", "application/octet-stream"})
+@RequestMapping("/api/store")
 public class StoreController {
     private final StoreService storeService;
 
     @Autowired
     public StoreController(StoreService storeService) {
         this.storeService = storeService;
-    }
-
-    @PostMapping("/create/{merchantId}")
-    public ResponseEntity<StoreDto> createStore(
-            @PathVariable UUID merchantId,
-            @ModelAttribute StoreDto dto,
-            @RequestParam("logo") MultipartFile logo) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(storeService.createStore(merchantId, dto, logo));
     }
 
 
