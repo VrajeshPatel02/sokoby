@@ -122,7 +122,7 @@ public class CartServiceImpl implements CartService {
         Variant variant = variantRepository.findById(itemDto.getVariantId())
                 .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
 
-        if (variant.getStockQuantity() < itemDto.getQuantity()) {
+        if (variant.getInventoryItem().getStockQuantity() < itemDto.getQuantity()) {
             throw new MerchantException("Insufficient stock for variant " + variant.getName(), "INSUFFICIENT_STOCK");
         }
 

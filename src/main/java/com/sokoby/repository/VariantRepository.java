@@ -13,16 +13,12 @@ import java.util.UUID;
 public interface VariantRepository extends JpaRepository<Variant, UUID> {
   List<Variant> findByProductId(UUID productId);
 
-  Page<Variant> findByProductId(UUID productId, Pageable pageable);
-
-  @Query("SELECT v FROM Variant v WHERE LOWER(v.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
-          "OR v.sku LIKE LOWER(CONCAT('%', :query, '%'))")
+  @Query("SELECT v FROM Variant v  WHERE LOWER(v.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+          "OR v.sku.skuCode LIKE LOWER(CONCAT('%', :query, '%'))")
   Page<Variant> searchVariants(@Param("query") String query, Pageable pageable);
 
-  @Query("SELECT v FROM Variant v WHERE v.product.id = :productId AND " +
-          "(LOWER(v.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
-          "OR v.sku LIKE LOWER(CONCAT('%', :query, '%')))")
-  Page<Variant> searchVariantsByProduct(@Param("productId") UUID productId, @Param("query") String query, Pageable pageable);
-
-  boolean existsBySku(String sku);
+//  @Query("SELECT v FROM Variant v WHERE v.product.id = :productId AND " +
+//          "(LOWER(v.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+//          "OR v.sku LIKE LOWER(CONCAT('%', :query, '%')))")
+//  Page<Variant> searchVariantsByProduct(@Param("productId") UUID productId, @Param("query") String query, Pageable pageable);
   }

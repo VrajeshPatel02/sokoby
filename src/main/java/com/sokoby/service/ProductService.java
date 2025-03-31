@@ -1,5 +1,6 @@
 package com.sokoby.service;
 
+import com.sokoby.payload.ProductCreationDto;
 import com.sokoby.payload.ProductDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,4 +25,6 @@ public interface ProductService {
     void deleteProduct(UUID id);
 
     ProductDto createProductWithImages(UUID  storeId, ProductDto dto, MultipartFile[] files);
+
+    ProductCreationDto createProductWithDetails(ProductCreationDto dto, MultipartFile[] files);
 }

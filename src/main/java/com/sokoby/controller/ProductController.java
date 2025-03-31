@@ -46,7 +46,7 @@ public class ProductController {
             @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "title") String sortBy,
             @RequestParam(defaultValue = "asc") String direction) {
 
         Sort sort = direction.equalsIgnoreCase("desc")
@@ -63,7 +63,7 @@ public class ProductController {
             @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "title") String sortBy,
             @RequestParam(defaultValue = "asc") String direction) {
 
         Sort sort = direction.equalsIgnoreCase("desc")

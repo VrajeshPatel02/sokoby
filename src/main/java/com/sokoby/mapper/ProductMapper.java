@@ -1,6 +1,7 @@
 package com.sokoby.mapper;
 
 import com.sokoby.entity.Product;
+import com.sokoby.enums.ProductStatus;
 import com.sokoby.payload.ImageDto;
 import com.sokoby.payload.ProductDto;
 
@@ -18,7 +19,7 @@ public class ProductMapper {
 
         ProductDto dto = new ProductDto();
         dto.setId(product.getId());
-        dto.setName(product.getName());
+        dto.setTitle(product.getTitle());
         dto.setDescription(product.getDescription());
         dto.setPrice(product.getPrice());
         dto.setCreatedAt(product.getCreatedAt());
@@ -26,7 +27,8 @@ public class ProductMapper {
         if (product.getStore() != null) {
             dto.setStoreId(product.getStore().getId());
         }
-        dto.setStock(product.getStock());
+        dto.setStatus(product.getStatus().toString());
+        dto.setComparedPrice(product.getComparedPrice());
         return dto;
     }
 
@@ -37,7 +39,7 @@ public class ProductMapper {
 
         ProductDto dto = new ProductDto();
         dto.setId(product.getId());
-        dto.setName(product.getName());
+        dto.setTitle(product.getTitle());
         dto.setDescription(product.getDescription());
         dto.setPrice(product.getPrice());
         dto.setCreatedAt(product.getCreatedAt());
@@ -45,7 +47,6 @@ public class ProductMapper {
         if (product.getStore() != null) {
             dto.setStoreId(product.getStore().getId());
         }
-        dto.setStock(product.getStock());
         dto.setImageUrls(imageDto);
         return dto;
     }
@@ -57,10 +58,11 @@ public class ProductMapper {
 
         Product product = new Product();
         product.setId(dto.getId());
-        product.setName(dto.getName());
+        product.setTitle(dto.getTitle());
         product.setDescription(dto.getDescription());
         product.setPrice(dto.getPrice());
-        product.setStock(dto.getStock());
+        product.setStatus(ProductStatus.valueOf(dto.getStatus().toUpperCase()));
+        product.setComparedPrice(dto.getComparedPrice());
         // Store association handled in service layer
         return product;
     }

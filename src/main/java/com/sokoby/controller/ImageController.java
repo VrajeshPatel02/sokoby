@@ -19,6 +19,7 @@ public class ImageController {
 
     @Autowired
     private StoreService storeService;
+
     @PostMapping("api/image/upload/file/{bucketName}/product/{productId}")
     public ResponseEntity<ImageDto> uploadFile(@RequestParam MultipartFile file,
                                                @PathVariable String bucketName,
@@ -46,4 +47,6 @@ public class ImageController {
             @RequestParam("logo") MultipartFile logo) {
         return ResponseEntity.status(HttpStatus.CREATED).body(storeService.createStore(merchantId, dto, logo));
     }
+
+
 }

@@ -185,7 +185,11 @@ public class MerchantServiceImpl implements MerchantService {
 
             String token = jwtService.generateToken(merchant.getEmail()); // Using email as token subject
             logger.info("Generated JWT token for merchant: {}", merchant.getEmail());
-            return new JWTTokenDto(token, "JWT Token");
+            JWTTokenDto jwtTokenDto = new JWTTokenDto();
+            jwtTokenDto.setToken(token);
+            jwtTokenDto.setType("JWT_Token");
+            jwtTokenDto.setMerchant(MerchantMapper.toDto(merchant));
+            return jwtTokenDto;
         } catch (Exception e) {
             logger.error("Failed to verify user with email: {}", loginDto.getEmail(), e);
             throw new MerchantException("Failed to verify user", "SERVER_ERROR");

@@ -15,9 +15,11 @@ import java.util.UUID;
 public class CollectionDto {
     private UUID id;
 
-    private String name;
+    private String type;
     @NotNull
     private UUID storeId;
+
+    private String vendor;
 
     private List<ProductDto> products;
 

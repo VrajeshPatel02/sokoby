@@ -17,13 +17,13 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Page<Product> findByStoreId(UUID storeId, Pageable pageable);
 
     // Search products globally by name or description with pagination
-    @Query("SELECT p FROM Product p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+    @Query("SELECT p FROM Product p WHERE LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
             "OR LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%'))")
     Page<Product> searchProducts(@Param("query") String query, Pageable pageable);
 
     // Search products within a specific store by name or description with pagination
     @Query("SELECT p FROM Product p WHERE p.store.id = :storeId AND " +
-            "(LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "(LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
             "OR LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<Product> searchProductsByStore(@Param("storeId") UUID storeId, @Param("query") String query, Pageable pageable);
 }

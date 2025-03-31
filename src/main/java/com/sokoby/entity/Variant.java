@@ -19,18 +19,19 @@ public class Variant {
     @Column(name = "id", nullable = false)
     private UUID id;
 
+    @Column(name = "name", nullable = false)
+    private String name;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(name = "sku", nullable = false, unique = true)
-    private String sku;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sku_id", nullable = false)
+    private SKU sku;
 
     @Column(name = "price")
     private Double price;
-
-    @Column(name = "stock_quantity")
-    private Integer stockQuantity;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -40,12 +41,10 @@ public class Variant {
     @Column(name = "updated_at")
     private Date updatedAt;
 
-    @Column(name = "name", nullable = false)
-    private String name;
 
     @OneToOne(orphanRemoval = true)
     @JoinColumn(name = "inventory_item_id")
-    private InventoryItem inventoryItem;
+    private Inventory inventoryItem;
 
     @PrePersist
     protected void onCreate() {

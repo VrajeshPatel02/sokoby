@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface CollectionService {
-    CollectionDto createCategory(CollectionDto dto);
+    CollectionDto createCategory(UUID productId, CollectionDto dto);
 
     CollectionDto getCategoryById(UUID id);
 

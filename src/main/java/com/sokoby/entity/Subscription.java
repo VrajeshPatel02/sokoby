@@ -1,38 +1,40 @@
 package com.sokoby.entity;
 
+import com.sokoby.enums.SubscriptionStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "categories")
+@Table(name = "subscriptions")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Collection {
+public class Subscription {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id", nullable = false)
     private UUID id;
 
-    @Column(name = "type", nullable = false)
-    private String type;
+    @OneToOne
+    @JoinColumn(name = "merchant_id", nullable = false)
+    private Merchant merchant;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id", nullable = false)
-    private Store store;
+    @Column(name = "stripe_checkout_session_id")
+    private String stripeCheckoutSessionId;
 
-    @ManyToMany(mappedBy = "collections")
-    private List<Product> products;
+    @Column(name = "stripe_subscription_id")
+    private String stripeSubscriptionId;
 
-    @Column(name = "vendor")
-    private String vendor;
+    @Column(name = "status", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private SubscriptionStatus status;
+
+    @Column(name = "error_message")
+    private String errorMessage;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -42,11 +44,10 @@ public class Collection {
     @Column(name = "updated_at")
     private Date updatedAt;
 
-
-
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();
+        this.updatedAt = new Date();
     }
 
     @PreUpdate

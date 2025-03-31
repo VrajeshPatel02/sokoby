@@ -1,12 +1,14 @@
 package com.sokoby.service.impl;
 
-import com.sokoby.entity.InventoryItem;
-import com.sokoby.entity.InventoryLevel;
+import com.sokoby.entity.Inventory;
 import com.sokoby.entity.Product;
+import com.sokoby.entity.SKU;
 import com.sokoby.entity.Variant;
 import com.sokoby.exception.MerchantException;
-import com.sokoby.repository.InventoryItemRepository;
+import com.sokoby.mapper.InventoryMapper;
+import com.sokoby.repository.InventoryRepository;
 import com.sokoby.repository.ProductRepository;
+import com.sokoby.repository.SKURepository;
 import com.sokoby.repository.VariantRepository;
 import com.sokoby.service.InventoryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,198 +21,177 @@ import java.util.UUID;
 @Service
 public class InventoryServiceImpl implements InventoryService {
 
-    private final InventoryItemRepository inventoryItemRepository;
-    private final ProductRepository productRepository;
+    private final InventoryRepository inventoryRepository;
     private final VariantRepository variantRepository;
+    private final ProductRepository productRepository;
+    private final SKURepository skuRepository;
 
     @Autowired
-    public InventoryServiceImpl(InventoryItemRepository inventoryItemRepository,
-                                ProductRepository productRepository,
-                                VariantRepository variantRepository) {
-        this.inventoryItemRepository = inventoryItemRepository;
-        this.productRepository = productRepository;
+    public InventoryServiceImpl(
+            InventoryRepository inventoryRepository,
+            VariantRepository variantRepository,
+            ProductRepository productRepository,
+            SKURepository skuRepository) {
+        this.inventoryRepository = inventoryRepository;
         this.variantRepository = variantRepository;
+        this.productRepository = productRepository;
+        this.skuRepository = skuRepository;
     }
 
     @Override
-    public List<InventoryItem> getAllInventoryItems() {
-        return inventoryItemRepository.findAll();
+    public List<Inventory> getAllInventorys() {
+        return inventoryRepository.findAll();
     }
 
     @Override
     @Transactional
-    public InventoryItem createInventoryItemForVariant(UUID variantId, Integer initialStock) {
+    public Inventory createInventoryForVariant(UUID variantId, Integer initialStock) {
         Variant variant = variantRepository.findById(variantId)
                 .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
-        if (inventoryItemRepository.findByVariantId(variantId).isPresent()) {
-            throw new MerchantException("Inventory item already exists for variant: " + variantId, "DUPLICATE_INVENTORY_ITEM");
+        SKU sku = variant.getSku();
+        if (inventoryRepository.findBySku(sku).isPresent()) {
+            throw new MerchantException("Inventory already exists for this SKU", "DUPLICATE_INVENTORY");
         }
-
-        InventoryItem item = new InventoryItem();
-        item.setSku(generateSkuForVariant(variant));
-        item.setVariant(variant);
-
-        InventoryLevel level = new InventoryLevel();
-        level.setInventoryItem(item);
-        level.setLocationId(UUID.randomUUID()); // Placeholder; adjust for real location logic
-        level.setQuantity(initialStock != null ? initialStock : 0);
-        level.setAvailableQuantity(variant.getStockQuantity());
-        item.getInventoryLevels().add(level);
-
-        return inventoryItemRepository.save(item);
+        Inventory inventory = InventoryMapper.toEntity(sku, initialStock);
+        return inventoryRepository.save(inventory);
     }
 
     @Override
     @Transactional
-    public InventoryItem createInventoryItemForProduct(UUID productId, Integer initialStock) {
+    public Inventory createInventoryForProduct(UUID productId, Integer initialStock) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
-        if (inventoryItemRepository.findByProductId(productId).isPresent()) {
-            throw new MerchantException("Inventory item already exists for product: " + productId, "DUPLICATE_INVENTORY_ITEM");
+        if (product.getSku() == null) {
+            throw new MerchantException("Product has no SKU assigned", "NO_SKU_ASSIGNED");
         }
-
-        InventoryItem item = new InventoryItem();
-        item.setSku(generateSkuForProduct(product));
-        item.setProduct(product);
-
-        InventoryLevel level = new InventoryLevel();
-        level.setInventoryItem(item);
-        level.setLocationId(UUID.randomUUID()); // Placeholder; adjust for real location logic
-        level.setQuantity(initialStock != null ? initialStock : 0);
-        level.setAvailableQuantity(product.getStock());
-        item.getInventoryLevels().add(level);
-
-        return inventoryItemRepository.save(item);
+        SKU sku = product.getSku();
+        if (inventoryRepository.findBySku(sku).isPresent()) {
+            throw new MerchantException("Inventory already exists for this SKU", "DUPLICATE_INVENTORY");
+        }
+        Inventory inventory = InventoryMapper.toEntity(sku, initialStock);
+        return inventoryRepository.save(inventory);
     }
 
     @Override
-    public InventoryItem getInventoryItemById(UUID id) {
-        return inventoryItemRepository.findById(id)
-                .orElseThrow(() -> new MerchantException("Inventory item not found", "INVENTORY_NOT_FOUND"));
+    public Inventory getInventoryById(UUID id) {
+        return inventoryRepository.findById(id)
+                .orElseThrow(() -> new MerchantException("Inventory not found", "INVENTORY_NOT_FOUND"));
     }
 
     @Override
     @Transactional
-    public InventoryItem updateInventoryItem(InventoryItem item) {
-        InventoryItem existing = inventoryItemRepository.findById(item.getId())
-                .orElseThrow(() -> new MerchantException("Inventory item not found", "INVENTORY_NOT_FOUND"));
-        existing.setSku(item.getSku());
-        // Note: product/variant relationships shouldn’t change; update levels separately if needed
-        return inventoryItemRepository.save(existing);
+    public Inventory updateInventory(Inventory item) {
+        Inventory existing = inventoryRepository.findById(item.getId())
+                .orElseThrow(() -> new MerchantException("Inventory not found", "INVENTORY_NOT_FOUND"));
+        existing.setStockQuantity(item.getStockQuantity());
+        return inventoryRepository.save(existing);
     }
 
     @Override
     @Transactional
     public void updateStockForVariant(UUID variantId, Integer newStock) {
-        InventoryItem item = inventoryItemRepository.findByVariantId(variantId)
-                .orElseThrow(() -> new MerchantException("Inventory item not found for variant: " + variantId, "INVENTORY_NOT_FOUND"));
-        item.getInventoryLevels().stream()
-                .findFirst()
-                .ifPresent(level -> level.setQuantity(newStock));
-        inventoryItemRepository.save(item);
+        Variant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
+        Inventory inventory = inventoryRepository.findBySku(variant.getSku())
+                .orElseThrow(() -> new MerchantException("Inventory not found", "INVENTORY_NOT_FOUND"));
+        inventory.setStockQuantity(newStock);
+        inventoryRepository.save(inventory);
     }
 
     @Override
     @Transactional
     public void updateStockForProduct(UUID productId, Integer newStock) {
-        InventoryItem item = inventoryItemRepository.findByProductId(productId)
-                .orElseThrow(() -> new MerchantException("Inventory item not found for product: " + productId, "INVENTORY_NOT_FOUND"));
-        item.getInventoryLevels().stream()
-                .findFirst()
-                .ifPresent(level -> level.setQuantity(newStock));
-        inventoryItemRepository.save(item);
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
+        if (product.getSku() == null) {
+            throw new MerchantException("Product has no SKU assigned", "NO_SKU_ASSIGNED");
+        }
+        Inventory inventory = inventoryRepository.findBySku(product.getSku())
+                .orElseThrow(() -> new MerchantException("Inventory not found", "INVENTORY_NOT_FOUND"));
+        inventory.setStockQuantity(newStock);
+        inventoryRepository.save(inventory);
     }
 
     @Override
     @Transactional
-    public void deleteInventoryItem(UUID id) {
-        InventoryItem item = inventoryItemRepository.findById(id)
-                .orElseThrow(() -> new MerchantException("Inventory item not found", "INVENTORY_NOT_FOUND"));
-        inventoryItemRepository.delete(item);
+    public void deleteInventory(UUID id) {
+        Inventory inventory = inventoryRepository.findById(id)
+                .orElseThrow(() -> new MerchantException("Inventory not found", "INVENTORY_NOT_FOUND"));
+        inventoryRepository.delete(inventory);
     }
 
     @Override
     public boolean isAvailable(UUID variantId, int quantity) {
-        InventoryItem item = inventoryItemRepository.findByVariantId(variantId)
-                .orElseThrow(() -> new MerchantException("Inventory item not found for variant: " + variantId, "INVENTORY_NOT_FOUND"));
-        return item.getTotalStock() >= quantity;
+        Variant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
+        return inventoryRepository.findBySku(variant.getSku())
+                .map(inventory -> inventory.getStockQuantity() >= quantity)
+                .orElse(false);
     }
 
     @Override
     public boolean isAvailableForProduct(UUID productId, Integer quantity) {
-        InventoryItem item = inventoryItemRepository.findByProductId(productId)
-                .orElseThrow(() -> new MerchantException("Inventory item not found for product: " + productId, "INVENTORY_NOT_FOUND"));
-        return item.getTotalStock() >= quantity;
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
+        if (product.getSku() == null) return false;
+        return inventoryRepository.findBySku(product.getSku())
+                .map(inventory -> inventory.getStockQuantity() >= quantity)
+                .orElse(false);
     }
 
     @Override
     @Transactional
     public void reserveStock(UUID variantId, int quantity) {
-        InventoryItem item = inventoryItemRepository.findByVariantId(variantId)
-                .orElseThrow(() -> new MerchantException("Inventory item not found for variant: " + variantId, "INVENTORY_NOT_FOUND"));
-        int totalStock = item.getTotalStock();
-        if (totalStock < quantity) {
-            throw new MerchantException("Insufficient stock for variant: " + variantId, "INSUFFICIENT_STOCK");
+        Variant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
+        Inventory inventory = inventoryRepository.findBySku(variant.getSku())
+                .orElseThrow(() -> new MerchantException("Inventory not found", "INVENTORY_NOT_FOUND"));
+        if (inventory.getStockQuantity() < quantity) {
+            throw new MerchantException("Insufficient stock to reserve", "INSUFFICIENT_STOCK");
         }
-        item.getInventoryLevels().stream()
-                .filter(level -> level.getQuantity() >= quantity)
-                .findFirst()
-                .ifPresent(level -> {
-                    level.setQuantity(level.getQuantity() - quantity);
-                    inventoryItemRepository.save(item);
-                });
+        inventory.setStockQuantity(inventory.getStockQuantity() - quantity);
+        inventoryRepository.save(inventory);
     }
 
     @Override
     @Transactional
     public void reserveStockForProduct(UUID productId, int quantity) {
-        InventoryItem item = inventoryItemRepository.findByProductId(productId)
-                .orElseThrow(() -> new MerchantException("Inventory item not found for product: " + productId, "INVENTORY_NOT_FOUND"));
-        int totalStock = item.getTotalStock();
-        if (totalStock < quantity) {
-            throw new MerchantException("Insufficient stock for product: " + productId, "INSUFFICIENT_STOCK");
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
+        if (product.getSku() == null) {
+            throw new MerchantException("Product has no SKU assigned", "NO_SKU_ASSIGNED");
         }
-        item.getInventoryLevels().stream()
-                .filter(level -> level.getQuantity() >= quantity)
-                .findFirst()
-                .ifPresent(level -> {
-                    level.setQuantity(level.getQuantity() - quantity);
-                    inventoryItemRepository.save(item);
-                });
+        Inventory inventory = inventoryRepository.findBySku(product.getSku())
+                .orElseThrow(() -> new MerchantException("Inventory not found", "INVENTORY_NOT_FOUND"));
+        if (inventory.getStockQuantity() < quantity) {
+            throw new MerchantException("Insufficient stock to reserve", "INSUFFICIENT_STOCK");
+        }
+        inventory.setStockQuantity(inventory.getStockQuantity() - quantity);
+        inventoryRepository.save(inventory);
     }
 
     @Override
     @Transactional
     public void releaseStock(UUID variantId, int quantity) {
-        InventoryItem item = inventoryItemRepository.findByVariantId(variantId)
-                .orElseThrow(() -> new MerchantException("Inventory item not found for variant: " + variantId, "INVENTORY_NOT_FOUND"));
-        item.getInventoryLevels().stream()
-                .findFirst()
-                .ifPresent(level -> {
-                    level.setQuantity(level.getQuantity() + quantity);
-                    inventoryItemRepository.save(item);
-                });
+        Variant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
+        Inventory inventory = inventoryRepository.findBySku(variant.getSku())
+                .orElseThrow(() -> new MerchantException("Inventory not found", "INVENTORY_NOT_FOUND"));
+        inventory.setStockQuantity(inventory.getStockQuantity() + quantity);
+        inventoryRepository.save(inventory);
     }
 
     @Override
     @Transactional
     public void releaseStockForProduct(UUID productId, int quantity) {
-        InventoryItem item = inventoryItemRepository.findByProductId(productId)
-                .orElseThrow(() -> new MerchantException("Inventory item not found for product: " + productId, "INVENTORY_NOT_FOUND"));
-        item.getInventoryLevels().stream()
-                .findFirst()
-                .ifPresent(level -> {
-                    level.setQuantity(level.getQuantity() + quantity);
-                    inventoryItemRepository.save(item);
-                });
-    }
-
-    // Helper method for SKU generation (simplified)
-    private String generateSkuForVariant(Variant variant) {
-        return "VAR-" + variant.getId().toString().substring(0, 8);
-    }
-
-    private String generateSkuForProduct(Product product) {
-        return "PROD-" + product.getId().toString().substring(0, 8);
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
+        if (product.getSku() == null) {
+            throw new MerchantException("Product has no SKU assigned", "NO_SKU_ASSIGNED");
+        }
+        Inventory inventory = inventoryRepository.findBySku(product.getSku())
+                .orElseThrow(() -> new MerchantException("Inventory not found", "INVENTORY_NOT_FOUND"));
+        inventory.setStockQuantity(inventory.getStockQuantity() + quantity);
+        inventoryRepository.save(inventory);
     }
 }

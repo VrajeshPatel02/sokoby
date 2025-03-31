@@ -1,24 +1,24 @@
 package com.sokoby.service;
 
-import com.sokoby.entity.InventoryItem;
+import com.sokoby.entity.Inventory;
 
 import java.util.List;
 import java.util.UUID;
 
 public interface InventoryService {
-    List<InventoryItem> getAllInventoryItems();
+    List<Inventory> getAllInventorys();
 
-    InventoryItem createInventoryItemForVariant(UUID variantId, Integer initialStock);
-    InventoryItem createInventoryItemForProduct(UUID productId, Integer initialStock);
+    Inventory createInventoryForVariant(UUID variantId, Integer initialStock);
+    Inventory createInventoryForProduct(UUID productId, Integer initialStock);
 
-    InventoryItem getInventoryItemById(UUID id);
+    Inventory getInventoryById(UUID id);
 
-    InventoryItem updateInventoryItem(InventoryItem item);
+    Inventory updateInventory(Inventory item);
 
     void updateStockForVariant(UUID variantId, Integer newStock);
     void updateStockForProduct(UUID productId, Integer newStock);
 
-    void deleteInventoryItem(UUID id);
+    void deleteInventory(UUID id);
 
     boolean isAvailable(UUID variantId, int quantity);
     boolean isAvailableForProduct(UUID productId, Integer quantity);

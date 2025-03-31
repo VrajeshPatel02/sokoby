@@ -1,46 +1,43 @@
 package com.sokoby.mapper;
 
-
+import com.sokoby.entity.Product;
+import com.sokoby.entity.SKU;
 import com.sokoby.entity.Variant;
 import com.sokoby.payload.VariantDto;
 
+import java.util.UUID;
+
 public class VariantMapper {
+
     private VariantMapper() {
         throw new UnsupportedOperationException("Utility class cannot be instantiated");
     }
 
-    public static VariantDto toDto(Variant variant) {
-        if (variant == null) {
-            throw new IllegalArgumentException("Variant entity cannot be null");
-        }
+    public static Variant toEntity(VariantDto dto, Product product, SKU sku) {
+        Variant variant = new Variant();
+        variant.setProduct(product);
+        variant.setSku(sku);
+        variant.setPrice(dto.getPrice() != null ? dto.getPrice() : product.getPrice());
+        return variant;
+    }
 
+    public static VariantDto toDto(Variant variant, Integer stockQuantity) {
         VariantDto dto = new VariantDto();
-        dto.setId(variant.getId());
-        dto.setName(variant.getName());
+        dto.setVariantId(variant.getId());
+        dto.setProductId(variant.getProduct().getId());
+        dto.setSkuCode(variant.getSku().getSkuCode());
         dto.setPrice(variant.getPrice());
-        dto.setSku(variant.getSku());
-        dto.setStockQuantity(variant.getStockQuantity());
-        dto.setCreatedAt(variant.getCreatedAt());
-        dto.setUpdatedAt(variant.getUpdatedAt());
-        if (variant.getProduct() != null) {
-            dto.setProductId(variant.getProduct().getId());
-        }
-        dto.setInventoryItemId(variant.getInventoryItem().getId());
+        dto.setStockQuantity(stockQuantity); // Fetched from Inventory
         return dto;
     }
 
-    public static Variant toEntity(VariantDto dto) {
-        if (dto == null) {
-            throw new IllegalArgumentException("VariantDto cannot be null");
-        }
+    public static SKU toSkuEntity(VariantDto dto) {
+        SKU sku = new SKU();
+        sku.setSkuCode(dto.getSkuCode() != null ? dto.getSkuCode() : generateSkuCode("VARIANT"));
+        return sku;
+    }
 
-        Variant variant = new Variant();
-        variant.setId(dto.getId());
-        variant.setName(dto.getName());
-        variant.setPrice(dto.getPrice());
-        variant.setSku(dto.getSku());
-        variant.setStockQuantity(dto.getStockQuantity());
-        // Product association handled in service
-        return variant;
+    private static String generateSkuCode(String prefix) {
+        return prefix + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 }

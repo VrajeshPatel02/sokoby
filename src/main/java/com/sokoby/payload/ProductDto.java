@@ -18,7 +18,7 @@ public class ProductDto {
 
     @NotNull
     @Size(min = 2, message = "Name should be at least 2 characters")
-    private String name;
+    private String title;
 
     private UUID storeId;
 
@@ -28,6 +28,8 @@ public class ProductDto {
     private UUID variantId;
 
     private Integer stock;
+    private String status;
+    private Double comparedPrice;
 
     private Double price;
     private List<CollectionDto> collections;

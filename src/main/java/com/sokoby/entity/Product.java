@@ -1,5 +1,7 @@
 package com.sokoby.entity;
 
+import com.sokoby.enums.OrderStatus;
+import com.sokoby.enums.ProductStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,7 +25,7 @@ public class Product {
     private Store store;
 
     @Column(name = "name", nullable = false)
-    private String name;
+    private String title;
 
     @Column(name = "description")
     private String description;
@@ -42,6 +44,17 @@ public class Product {
     )
     private List<Collection> collections;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private ProductStatus status;
+
+    @Column(name = "compared_price")
+    private Double comparedPrice;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sku_id")
+    private SKU sku; // Nullable for products with variants
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)
     private Date createdAt;
@@ -49,9 +62,6 @@ public class Product {
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
     private Date updatedAt;
-
-    @Column(name = "stock")
-    private Integer stock;
 
     @OneToMany(mappedBy = "product", orphanRemoval = true)
     private List<ProductImage> productImages = new ArrayList<>();
