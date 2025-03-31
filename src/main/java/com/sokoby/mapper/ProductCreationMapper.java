@@ -78,6 +78,13 @@ public class ProductCreationMapper {
         dto.setStoreId(product.getStore().getId());
         dto.setPrice(product.getPrice());
         dto.setStatus(product.getStatus());
+        if(product.getSku().getSkuCode() != null){
+            dto.setSkuCode(product.getSku().getSkuCode());
+        }
+        if(product.getInventory().getStockQuantity() !=null ){
+            dto.setStockQuantity(product.getInventory().getStockQuantity());
+        }
+
         dto.setComparedPrice(product.getComparedPrice());
 
         // Product SKU and Stock
@@ -92,6 +99,7 @@ public class ProductCreationMapper {
                         ProductCreationDto.VariantDto variantDto = new ProductCreationDto.VariantDto();
                         variantDto.setId(variant.getId());
                         variantDto.setName(variant.getName());
+                        variantDto.setStockQuantity(variant.getInventoryItem().getStockQuantity());
                         variantDto.setSkuCode(variant.getSku().getSkuCode());
                         variantDto.setPrice(variant.getPrice());
                         // Assuming one Inventory per SKU for simplicity

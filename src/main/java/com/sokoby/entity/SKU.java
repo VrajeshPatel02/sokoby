@@ -21,6 +21,9 @@ public class SKU {
     @Column(name = "sku_code", unique = true, nullable = false)
     private String skuCode;
 
+    @Column(name = "barcode", unique = true)
+    private String barcode;
+
     @OneToOne(mappedBy = "sku")
     private Product product;
 

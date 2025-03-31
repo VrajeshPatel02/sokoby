@@ -35,6 +35,8 @@ public class ProductCreationDto {
 
     private List<ImageDto> images;
 
+    private String barcode;
+
     @Data
     public static class VariantDto {
         private UUID id;
@@ -42,6 +44,7 @@ public class ProductCreationDto {
         private String skuCode;
         private Double price;
         private Integer stockQuantity;
+        private String barcode;
     }
 
     @Data

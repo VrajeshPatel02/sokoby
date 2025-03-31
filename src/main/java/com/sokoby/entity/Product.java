@@ -66,6 +66,10 @@ public class Product {
     @OneToMany(mappedBy = "product", orphanRemoval = true)
     private List<ProductImage> productImages = new ArrayList<>();
 
+    @OneToOne(orphanRemoval = true)
+    @JoinColumn(name = "inventory_id")
+    private Inventory inventory;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();

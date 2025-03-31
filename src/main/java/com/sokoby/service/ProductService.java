@@ -27,4 +27,6 @@ public interface ProductService {
     ProductDto createProductWithImages(UUID  storeId, ProductDto dto, MultipartFile[] files);
 
     ProductCreationDto createProductWithDetails(ProductCreationDto dto, MultipartFile[] files);
+
+//    ProductCreationDto updateProductWithDetails(UUID productId, ProductCreationDto dto, MultipartFile[] files);
 }

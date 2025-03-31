@@ -226,16 +226,20 @@ public class ProductServiceImpl implements ProductService {
         Product product = ProductCreationMapper.toEntity(dto, store);
         product = productRepository.save(product);
 
-        // Handle SKU and Inventory for Product (if no variants)
-        if (dto.getVariants() == null || dto.getVariants().isEmpty()) {
-            if (dto.getSkuCode() != null || dto.getStockQuantity() != null) {
-                SKU sku = ProductCreationMapper.toSkuEntity(dto.getSkuCode());
-                sku = skuRepository.save(sku);
-                product.setSku(sku);
-                if (dto.getStockQuantity() != null) {
-                    Inventory inventory = ProductCreationMapper.toInventoryEntity(sku, dto.getStockQuantity());
-                    inventoryRepository.save(inventory);
-                }
+    // Handle SKU and Inventory for Product (if no variants)
+
+        if (dto.getSkuCode() != null || dto.getStockQuantity() != null || dto.getBarcode() != null) {
+            SKU sku = ProductCreationMapper.toSkuEntity(dto.getSkuCode());
+            if(dto.getBarcode() != null){
+                sku.setBarcode(dto.getBarcode());
+            }
+            sku = skuRepository.save(sku);
+            product.setSku(skuRepository.findById(sku.getId()).get());
+            product.setSku(sku);
+            if (dto.getStockQuantity() != null) {
+                Inventory inventory = ProductCreationMapper.toInventoryEntity(sku, dto.getStockQuantity());
+                inventory = inventoryRepository.save(inventory);
+                product.setInventory(inventory);
             }
         }
 
@@ -245,12 +249,19 @@ public class ProductServiceImpl implements ProductService {
             for (ProductCreationDto.VariantDto variantDto : dto.getVariants()) {
                 Variant variant = ProductCreationMapper.toVariantEntity(variantDto, product);
                 SKU sku = ProductCreationMapper.toSkuEntity(variantDto.getSkuCode());
+                if(variantDto.getBarcode() != null){
+                    sku.setBarcode(dto.getBarcode());
+                }
                 sku = skuRepository.save(sku);
                 variant.setSku(sku);
                 variant = variantRepository.save(variant);
                 if (variantDto.getStockQuantity() != null) {
                     Inventory inventory = ProductCreationMapper.toInventoryEntity(sku, variantDto.getStockQuantity());
-                    inventoryRepository.save(inventory);
+                    inventory = inventoryRepository.save(inventory);
+                    variantDto.setStockQuantity(inventory.getStockQuantity());
+                    variant.setInventoryItem(inventory);
+                    variantRepository.save(variant);
+                    variantDto.setStockQuantity(inventory.getStockQuantity());
                 }
                 variantDto.setId(variant.getId());
                 variantDto.setName(variant.getName());
