@@ -32,7 +32,7 @@ public class Product {
     private String description;
 
     // Ensuring variants are deleted when product is deleted
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL,  fetch = FetchType.LAZY)
     @JsonIgnore
     private List<Variant> variants = new ArrayList<>();
 
@@ -56,7 +56,7 @@ public class Product {
     private Double comparedPrice;
 
     // Ensuring SKU is deleted when product is deleted
-    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JsonIgnore
     @JoinColumn(name = "sku_id")
     private SKU sku;
@@ -70,12 +70,12 @@ public class Product {
     private Date updatedAt;
 
     // Ensuring product images are deleted when product is deleted
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
     private List<ProductImage> productImages = new ArrayList<>();
 
     // Ensuring inventory is deleted when product is deleted
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(cascade = CascadeType.ALL)
     @JsonIgnore
     @JoinColumn(name = "inventory_id")
     private Inventory inventory;
