@@ -2,10 +2,8 @@ package com.sokoby.service.impl;
 
 import com.sokoby.entity.*;
 import com.sokoby.exception.MerchantException;
-import com.sokoby.mapper.CollectionMapper;
 import com.sokoby.mapper.ProductCreationMapper;
 import com.sokoby.mapper.ProductMapper;
-import com.sokoby.payload.CollectionDto;
 import com.sokoby.payload.ImageDto;
 import com.sokoby.payload.ProductCreationDto;
 import com.sokoby.payload.ProductDto;
@@ -78,13 +76,13 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
-    @Override
-    public ProductDto getProductById(UUID id) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
-        logger.info("Retrieved product with ID: {}", id);
-        return ProductMapper.toDto(product);
-    }
+//    @Override
+//    public ProductDto getProductById(UUID id) {
+//        Product product = productRepository.findById(id)
+//                .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
+//        logger.info("Retrieved product with ID: {}", id);
+//        return ProductMapper.toDto(product);
+//    }
 
     @Override
     public List<ProductDto> getProductsByStoreId(UUID storeId) {
@@ -226,15 +224,11 @@ public class ProductServiceImpl implements ProductService {
         Product product = ProductCreationMapper.toEntity(dto, store);
         product = productRepository.save(product);
 
-    // Handle SKU and Inventory for Product (if no variants)
+        // Handle SKU and Inventory for Product (if no variants)
 
         if (dto.getSkuCode() != null || dto.getStockQuantity() != null || dto.getBarcode() != null) {
-            SKU sku = ProductCreationMapper.toSkuEntity(dto.getSkuCode());
-            if(dto.getBarcode() != null){
-                sku.setBarcode(dto.getBarcode());
-            }
+            SKU sku = ProductCreationMapper.toSkuEntity(dto.getSkuCode(), dto.getBarcode(), skuRepository);
             sku = skuRepository.save(sku);
-            product.setSku(skuRepository.findById(sku.getId()).get());
             product.setSku(sku);
             if (dto.getStockQuantity() != null) {
                 Inventory inventory = ProductCreationMapper.toInventoryEntity(sku, dto.getStockQuantity());
@@ -248,17 +242,13 @@ public class ProductServiceImpl implements ProductService {
         if (dto.getVariants() != null && !dto.getVariants().isEmpty()) {
             for (ProductCreationDto.VariantDto variantDto : dto.getVariants()) {
                 Variant variant = ProductCreationMapper.toVariantEntity(variantDto, product);
-                SKU sku = ProductCreationMapper.toSkuEntity(variantDto.getSkuCode());
-                if(variantDto.getBarcode() != null){
-                    sku.setBarcode(dto.getBarcode());
-                }
-                sku = skuRepository.save(sku);
-                variant.setSku(sku);
+                SKU variantSku = ProductCreationMapper.toSkuEntity(variantDto.getSkuCode(), variantDto.getBarcode(), skuRepository);
+                variantSku = skuRepository.save(variantSku);
+                variant.setSku(variantSku);
                 variant = variantRepository.save(variant);
                 if (variantDto.getStockQuantity() != null) {
-                    Inventory inventory = ProductCreationMapper.toInventoryEntity(sku, variantDto.getStockQuantity());
+                    Inventory inventory = ProductCreationMapper.toInventoryEntity(variantSku, variantDto.getStockQuantity());
                     inventory = inventoryRepository.save(inventory);
-                    variantDto.setStockQuantity(inventory.getStockQuantity());
                     variant.setInventoryItem(inventory);
                     variantRepository.save(variant);
                     variantDto.setStockQuantity(inventory.getStockQuantity());
@@ -278,7 +268,7 @@ public class ProductServiceImpl implements ProductService {
             }
             Collection collection = ProductCreationMapper.toCollectionEntity(dto.getCollection(), store, product);
             collection = collectionRepository.save(collection);
-            if(product.getCollections() == null){
+            if (product.getCollections() == null) {
                 product.setCollections(new ArrayList<>());
             }
             product.getCollections().add(collection);
@@ -302,6 +292,68 @@ public class ProductServiceImpl implements ProductService {
         // Prepare response DTO with all details
         ProductCreationDto responseDto = ProductCreationMapper.toDto(product, variantDtos, collectionDto, imageDtos);
         logger.info("Created product {} with optional details and images", product.getId());
+        return responseDto;
+    }
+
+
+    @Override
+    public ProductCreationDto getProductById(UUID productId) {
+        // Fetch product with all relationships
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
+
+        // Prepare variant DTOs
+        List<ProductCreationDto.VariantDto> variantDtos = new ArrayList<>();
+        if (product.getVariants() != null && !product.getVariants().isEmpty()) {
+            variantDtos = product.getVariants().stream()
+                    .map(variant -> {
+                        ProductCreationDto.VariantDto variantDto = new ProductCreationDto.VariantDto();
+                        variantDto.setId(variant.getId());
+                        variantDto.setSkuCode(variant.getSku().getSkuCode());
+                        variantDto.setBarcode(variant.getSku().getBarcode());
+                        variantDto.setPrice(variant.getPrice());
+                        if (variant.getInventoryItem() != null) {
+                            variantDto.setStockQuantity(variant.getInventoryItem().getStockQuantity());
+                        }
+                        return variantDto;
+                    })
+                    .collect(Collectors.toList());
+        }
+
+        // Prepare collection DTO
+        ProductCreationDto.CollectionDto collectionDto = null;
+        if (product.getCollections() != null && !product.getCollections().isEmpty()) {
+            Collection collection = product.getCollections().get(0); // Assuming one collection for simplicity
+            collectionDto = new ProductCreationDto.CollectionDto();
+            collectionDto.setId(collection.getId());
+            collectionDto.setType(collection.getType());
+            collectionDto.setVendor(collection.getVendor());
+        }
+
+        // Prepare image DTOs
+        List<ImageDto> imageDtos = product.getProductImages().stream()
+                .map(image -> {
+                    ImageDto imageDto = new ImageDto();
+                    imageDto.setImageUrl(image.getImageUrl());
+                    return imageDto;
+                })
+                .collect(Collectors.toList());
+
+        // Construct response DTO
+        ProductCreationDto responseDto = ProductCreationMapper.toDto(product, variantDtos, collectionDto, imageDtos);
+
+        // Populate product-level SKU and inventory if no variants
+//        if (product.getSku() != null && (product.getVariants() == null || product.getVariants().isEmpty())) {
+//            ProductCreationDto.SkuDto skuDto = new ProductCreationDto.SkuDto();
+//            skuDto.setSkuCode(product.getSku().getSkuCode());
+//            skuDto.setBarcode(product.getSku().getBarcode());
+//            if (product.getInventory() != null) {
+//                skuDto.setStockQuantity(product.getInventory().getStockQuantity());
+//            }
+//            responseDto.setProductSku(skuDto);
+//        }
+
+        logger.info("Retrieved product {} with details", product.getId());
         return responseDto;
     }
 }

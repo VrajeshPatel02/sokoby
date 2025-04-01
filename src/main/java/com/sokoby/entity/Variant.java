@@ -41,7 +41,6 @@ public class Variant {
     @Column(name = "updated_at")
     private Date updatedAt;
 
-
     @OneToOne(orphanRemoval = true)
     @JoinColumn(name = "inventory_item_id")
     private Inventory inventoryItem;

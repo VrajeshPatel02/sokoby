@@ -18,7 +18,7 @@ public class SKU {
     @Column(name = "sku_id")
     private UUID id;
 
-    @Column(name = "sku_code", unique = true, nullable = false)
+    @Column(name = "sku_code", unique = true)
     private String skuCode;
 
     @Column(name = "barcode", unique = true)

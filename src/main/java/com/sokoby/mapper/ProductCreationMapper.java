@@ -2,8 +2,10 @@ package com.sokoby.mapper;
 
 import com.sokoby.entity.*;
 import com.sokoby.enums.ProductStatus;
+import com.sokoby.exception.MerchantException;
 import com.sokoby.payload.ImageDto;
 import com.sokoby.payload.ProductCreationDto;
+import com.sokoby.repository.SKURepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,12 +29,24 @@ public class ProductCreationMapper {
         return product;
     }
 
-    public static SKU toSkuEntity(String skuCode) {
+    public static SKU toSkuEntity(String skuCode, String barcode, SKURepository skuRepository) {
         if (skuCode == null || skuCode.trim().isEmpty()) {
             skuCode = "SKU-" + UUID.randomUUID().toString().substring(0, 8);
         }
+
+        // Check if barcode already exists
+        if (barcode != null && !barcode.trim().isEmpty()) {
+            SKU existingSku = skuRepository.findByBarcode(barcode).orElse(null);
+            if (existingSku != null) {
+                throw new MerchantException("Barcode " + barcode + " already exists", "DUPLICATE_BARCODE");
+            }
+        }
+
         SKU sku = new SKU();
         sku.setSkuCode(skuCode);
+        if (barcode != null && !barcode.trim().isEmpty()) {
+            sku.setBarcode(barcode);
+        }
         return sku;
     }
 
@@ -78,19 +92,14 @@ public class ProductCreationMapper {
         dto.setStoreId(product.getStore().getId());
         dto.setPrice(product.getPrice());
         dto.setStatus(product.getStatus());
-        if(product.getSku().getSkuCode() != null){
-            dto.setSkuCode(product.getSku().getSkuCode());
-        }
-        if(product.getInventory().getStockQuantity() !=null ){
-            dto.setStockQuantity(product.getInventory().getStockQuantity());
-        }
-
-        dto.setComparedPrice(product.getComparedPrice());
-
-        // Product SKU and Stock
         if (product.getSku() != null) {
             dto.setSkuCode(product.getSku().getSkuCode());
+            dto.setBarcode(product.getSku().getBarcode());
         }
+        if (product.getInventory() != null) {
+            dto.setStockQuantity(product.getInventory().getStockQuantity());
+        }
+        dto.setComparedPrice(product.getComparedPrice());
 
         // Variants
         if (product.getVariants() != null && !product.getVariants().isEmpty()) {
@@ -99,10 +108,12 @@ public class ProductCreationMapper {
                         ProductCreationDto.VariantDto variantDto = new ProductCreationDto.VariantDto();
                         variantDto.setId(variant.getId());
                         variantDto.setName(variant.getName());
-                        variantDto.setStockQuantity(variant.getInventoryItem().getStockQuantity());
+                        if (variant.getInventoryItem() != null) {
+                            variantDto.setStockQuantity(variant.getInventoryItem().getStockQuantity());
+                        }
                         variantDto.setSkuCode(variant.getSku().getSkuCode());
+                        variantDto.setBarcode(variant.getSku().getBarcode());
                         variantDto.setPrice(variant.getPrice());
-                        // Assuming one Inventory per SKU for simplicity
                         return variantDto;
                     })
                     .collect(Collectors.toList());

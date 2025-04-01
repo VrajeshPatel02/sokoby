@@ -12,7 +12,7 @@ import java.util.UUID;
 public interface ProductService {
     ProductDto createProduct(UUID storeId, ProductDto dto);
 
-    ProductDto getProductById(UUID id);
+    ProductCreationDto getProductById(UUID productId);
 
     List<ProductDto> getProductsByStoreId(UUID storeId);
 

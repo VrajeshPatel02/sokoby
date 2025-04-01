@@ -1,5 +1,6 @@
 package com.sokoby.controller;
 
+import com.sokoby.payload.ProductCreationDto;
 import com.sokoby.payload.ProductDto;
 import com.sokoby.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,11 +32,11 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.createProduct(storeId, dto));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ProductDto> getProductById(@PathVariable UUID id) {
-        return ResponseEntity.ok(productService.getProductById(id));
+    @GetMapping("/{productId}")
+    public ResponseEntity<ProductCreationDto> getProductById(@PathVariable UUID productId) {
+        ProductCreationDto product = productService.getProductById(productId);
+        return ResponseEntity.ok(product);
     }
-
     @GetMapping("/store/{storeId}")
     public ResponseEntity<List<ProductDto>> getProductsByStoreId(@PathVariable UUID storeId) {
         return ResponseEntity.ok(productService.getProductsByStoreId(storeId));
