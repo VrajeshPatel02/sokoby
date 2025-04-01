@@ -1,5 +1,6 @@
 package com.sokoby.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sokoby.enums.OrderStatus;
 import com.sokoby.enums.ProductStatus;
 import jakarta.persistence.*;
@@ -8,13 +9,13 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.*;
-
 @Entity
 @Table(name = "products")
 @Getter
 @Setter
 @NoArgsConstructor
 public class Product {
+
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "id", nullable = false)
@@ -30,19 +31,22 @@ public class Product {
     @Column(name = "description")
     private String description;
 
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-    private List<Variant> variants;
+    // Ensuring variants are deleted when product is deleted
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<Variant> variants = new ArrayList<>();
 
     @Column(name = "price", nullable = false)
     private Double price;
 
-    @ManyToMany
+    @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     @JoinTable(
             name = "product_collection",
             joinColumns = @JoinColumn(name = "product_id"),
             inverseJoinColumns = @JoinColumn(name = "category_id")
     )
-    private List<Collection> collections;
+    private List<Collection> collections = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -51,9 +55,11 @@ public class Product {
     @Column(name = "compared_price")
     private Double comparedPrice;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    // Ensuring SKU is deleted when product is deleted
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     @JoinColumn(name = "sku_id")
-    private SKU sku; // Nullable for products with variants
+    private SKU sku;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -63,10 +69,14 @@ public class Product {
     @Column(name = "updated_at")
     private Date updatedAt;
 
-    @OneToMany(mappedBy = "product", orphanRemoval = true)
+    // Ensuring product images are deleted when product is deleted
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<ProductImage> productImages = new ArrayList<>();
 
-    @OneToOne(orphanRemoval = true)
+    // Ensuring inventory is deleted when product is deleted
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     @JoinColumn(name = "inventory_id")
     private Inventory inventory;
 

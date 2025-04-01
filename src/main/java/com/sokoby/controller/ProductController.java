@@ -75,6 +75,11 @@ public class ProductController {
         return ResponseEntity.ok(productService.searchProductsByStore(storeId, query, pageable));
     }
 
+    @GetMapping("/getAll")
+    public ResponseEntity<List<ProductDto>> getAllProducts() {
+        return ResponseEntity.ok(productService.getAllProducts());
+    }
+
     @PutMapping("/update/{id}")
     public ResponseEntity<ProductDto> updateProduct(
             @PathVariable UUID id,

@@ -22,7 +22,7 @@ public class CollectionMapper {
         dto.setVendor(collection.getVendor());
         dto.setCreatedAt(collection.getCreatedAt());
         dto.setUpdatedAt(collection.getUpdatedAt());
-        dto.setProducts(collection.getProducts().stream().map(ProductMapper::toDto).collect(Collectors.toList()));
+//        dto.setProducts(collection.getProducts().stream().map(ProductMapper::toDto).collect(Collectors.toList()));
         return dto;
     }
 

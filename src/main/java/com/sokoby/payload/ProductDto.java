@@ -19,18 +19,14 @@ public class ProductDto {
     @NotNull
     @Size(min = 2, message = "Name should be at least 2 characters")
     private String title;
-
     private UUID storeId;
-
     private List<ImageDto> imageUrls;
     private String description;
-
-    private UUID variantId;
-
+    private List<VariantDto> variant;
     private Integer stock;
     private String status;
+    private String sku;
     private Double comparedPrice;
-
     private Double price;
     private List<CollectionDto> collections;
     private Date createdAt;

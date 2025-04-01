@@ -87,6 +87,7 @@ public class ProductCreationMapper {
     public static ProductCreationDto toDto(Product product, List<ProductCreationDto.VariantDto> variantDtos,
                                            ProductCreationDto.CollectionDto collectionDto, List<ImageDto> imageDtos) {
         ProductCreationDto dto = new ProductCreationDto();
+        dto.setProductId(product.getId());
         dto.setTitle(product.getTitle());
         dto.setDescription(product.getDescription());
         dto.setStoreId(product.getStore().getId());

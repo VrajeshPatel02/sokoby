@@ -3,6 +3,7 @@ package com.sokoby.service.impl;
 import com.sokoby.entity.*;
 import com.sokoby.exception.MerchantException;
 import com.sokoby.mapper.ProductCreationMapper;
+import com.sokoby.mapper.ProductImageMapper;
 import com.sokoby.mapper.ProductMapper;
 import com.sokoby.payload.ImageDto;
 import com.sokoby.payload.ProductCreationDto;
@@ -302,58 +303,211 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
 
-        // Prepare variant DTOs
-        List<ProductCreationDto.VariantDto> variantDtos = new ArrayList<>();
-        if (product.getVariants() != null && !product.getVariants().isEmpty()) {
-            variantDtos = product.getVariants().stream()
-                    .map(variant -> {
-                        ProductCreationDto.VariantDto variantDto = new ProductCreationDto.VariantDto();
-                        variantDto.setId(variant.getId());
-                        variantDto.setSkuCode(variant.getSku().getSkuCode());
-                        variantDto.setBarcode(variant.getSku().getBarcode());
-                        variantDto.setPrice(variant.getPrice());
-                        if (variant.getInventoryItem() != null) {
-                            variantDto.setStockQuantity(variant.getInventoryItem().getStockQuantity());
-                        }
-                        return variantDto;
-                    })
-                    .collect(Collectors.toList());
+        // Construct response DTO using existing mapper
+        ProductCreationDto responseDto = ProductCreationMapper.toDto(
+                product,
+                null, // Pass null for variantDtos since mapper will populate from product.variants
+                null, // Pass null for collectionDto since mapper will  populatefrom product.collections
+                null  // Pass null for imageDtos since mapper will populate from product.productImages
+        );
+
+        logger.info("Retrieved product {} with details", product.getId());
+        return responseDto;
+    }
+
+    @Transactional
+    @Override
+    public ProductCreationDto updateProductWithDetails(UUID productId, ProductCreationDto dto, MultipartFile[] files) {
+        // Fetch existing product
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
+
+        // Validate mandatory fields if provided
+        if (dto.getTitle() != null && dto.getTitle().trim().isEmpty()) {
+            throw new MerchantException("Product title cannot be empty", "INVALID_PRODUCT_TITLE");
+        }
+        if (dto.getStoreId() != null) {
+            Store store = storeRepository.findById(dto.getStoreId())
+                    .orElseThrow(() -> new MerchantException("Store not found", "STORE_NOT_FOUND"));
+            product.setStore(store);
+        }
+        if (dto.getPrice() != null && dto.getPrice() < 0) {
+            throw new MerchantException("Price cannot be negative", "INVALID_PRICE");
         }
 
-        // Prepare collection DTO
+        // Update basic product fields if provided
+        if (dto.getTitle() != null) product.setTitle(dto.getTitle());
+        if (dto.getDescription() != null) product.setDescription(dto.getDescription());
+        if (dto.getPrice() != null) product.setPrice(dto.getPrice());
+        if (dto.getStatus() != null) product.setStatus(dto.getStatus());
+        if (dto.getComparedPrice() != null) product.setComparedPrice(dto.getComparedPrice());
+
+        // Handle SKU and Inventory for Product (if no variants in DTO)
+        if (dto.getVariants() == null || dto.getVariants().isEmpty()) {
+            if (dto.getSkuCode() != null || dto.getStockQuantity() != null || dto.getBarcode() != null) {
+                SKU sku = product.getSku();
+                if (sku == null) {
+                    sku = ProductCreationMapper.toSkuEntity(dto.getSkuCode(), dto.getBarcode(), skuRepository);
+                    sku = skuRepository.save(sku);
+                    product.setSku(sku);
+                } else {
+                    if (dto.getSkuCode() != null && !dto.getSkuCode().equals(sku.getSkuCode())) {
+                        sku.setSkuCode(dto.getSkuCode());
+                    }
+                    if (dto.getBarcode() != null && !dto.getBarcode().equals(sku.getBarcode())) {
+                        if (skuRepository.findByBarcode(dto.getBarcode()).isPresent()) {
+                            throw new MerchantException("Barcode " + dto.getBarcode() + " already exists", "DUPLICATE_BARCODE");
+                        }
+                        sku.setBarcode(dto.getBarcode());
+                    }
+                    skuRepository.save(sku);
+                }
+                if (dto.getStockQuantity() != null) {
+                    Inventory inventory = product.getInventory();
+                    if (inventory == null) {
+                        inventory = ProductCreationMapper.toInventoryEntity(sku, dto.getStockQuantity());
+                        inventory = inventoryRepository.save(inventory);
+                        product.setInventory(inventory);
+                    } else {
+                        inventory.setStockQuantity(dto.getStockQuantity());
+                        inventoryRepository.save(inventory);
+                    }
+                }
+            }
+        } else {
+            // If variants are provided, remove product-level SKU and inventory
+            if (product.getSku() != null) {
+                if (product.getInventory() != null) {
+                    inventoryRepository.delete(product.getInventory());
+                    product.setInventory(null);
+                }
+                skuRepository.delete(product.getSku());
+                product.setSku(null);
+            }
+        }
+
+        // Handle Variants (optional)
+        List<ProductCreationDto.VariantDto> variantDtos = new ArrayList<>();
+        if (dto.getVariants() != null) {
+            // Delete existing variants not in the new list
+            List<Variant> existingVariants = product.getVariants();
+            List<String> newSkuCodes = dto.getVariants().stream()
+                    .map(ProductCreationDto.VariantDto::getSkuCode)
+                    .filter(skuCode -> skuCode != null)
+                    .collect(Collectors.toList());
+            for (Variant existingVariant : existingVariants) {
+                if (!newSkuCodes.contains(existingVariant.getSku().getSkuCode())) {
+                    if (existingVariant.getInventoryItem() != null) {
+                        inventoryRepository.delete(existingVariant.getInventoryItem());
+                    }
+                    skuRepository.delete(existingVariant.getSku());
+                    variantRepository.delete(existingVariant);
+                }
+            }
+
+            // Update or create variants
+            for (ProductCreationDto.VariantDto variantDto : dto.getVariants()) {
+                Variant variant = existingVariants.stream()
+                        .filter(v -> v.getSku().getSkuCode().equals(variantDto.getSkuCode()))
+                        .findFirst()
+                        .orElseGet(() -> {
+                            Variant newVariant = ProductCreationMapper.toVariantEntity(variantDto, product);
+                            SKU newSku = ProductCreationMapper.toSkuEntity(variantDto.getSkuCode(), variantDto.getBarcode(), skuRepository);
+                            newSku = skuRepository.save(newSku);
+                            newVariant.setSku(newSku);
+                            return newVariant;
+                        });
+
+                if (variantDto.getPrice() != null) variant.setPrice(variantDto.getPrice());
+                if (variantDto.getName() != null) variant.setName(variantDto.getName());
+                if (variantDto.getBarcode() != null && !variantDto.getBarcode().equals(variant.getSku().getBarcode())) {
+                    if (skuRepository.findByBarcode(variantDto.getBarcode()).isPresent()) {
+                        throw new MerchantException("Barcode " + variantDto.getBarcode() + " already exists", "DUPLICATE_BARCODE");
+                    }
+                    variant.getSku().setBarcode(variantDto.getBarcode());
+                    skuRepository.save(variant.getSku());
+                }
+                variant = variantRepository.save(variant);
+
+                if (variantDto.getStockQuantity() != null) {
+                    Inventory inventory = variant.getInventoryItem();
+                    if (inventory == null) {
+                        inventory = ProductCreationMapper.toInventoryEntity(variant.getSku(), variantDto.getStockQuantity());
+                        inventory = inventoryRepository.save(inventory);
+                        variant.setInventoryItem(inventory);
+                    } else {
+                        inventory.setStockQuantity(variantDto.getStockQuantity());
+                        inventoryRepository.save(inventory);
+                    }
+                }
+                variantDto.setId(variant.getId());
+                variantDto.setName(variant.getName());
+                variantDtos.add(variantDto);
+            }
+            product.setVariants(variantRepository.findByProductId(product.getId()));
+        }
+
+        // Handle Collection (optional)
         ProductCreationDto.CollectionDto collectionDto = null;
-        if (product.getCollections() != null && !product.getCollections().isEmpty()) {
-            Collection collection = product.getCollections().get(0); // Assuming one collection for simplicity
+        if (dto.getCollection() != null) {
+            if (dto.getCollection().getType() != null && dto.getCollection().getType().trim().isEmpty()) {
+                throw new MerchantException("Collection type cannot be empty", "INVALID_COLLECTION_TYPE");
+            }
+            Collection collection = product.getCollections().isEmpty()
+                    ? ProductCreationMapper.toCollectionEntity(dto.getCollection(), product.getStore(), product)
+                    : product.getCollections().get(0);
+            if (dto.getCollection().getType() != null) collection.setType(dto.getCollection().getType());
+            if (dto.getCollection().getVendor() != null) collection.setVendor(dto.getCollection().getVendor());
+            collection = collectionRepository.save(collection);
+            if (product.getCollections().isEmpty()) {
+                product.setCollections(new ArrayList<>());
+                product.getCollections().add(collection);
+            }
             collectionDto = new ProductCreationDto.CollectionDto();
             collectionDto.setId(collection.getId());
             collectionDto.setType(collection.getType());
             collectionDto.setVendor(collection.getVendor());
         }
 
-        // Prepare image DTOs
-        List<ImageDto> imageDtos = product.getProductImages().stream()
-                .map(image -> {
-                    ImageDto imageDto = new ImageDto();
-                    imageDto.setImageUrl(image.getImageUrl());
-                    return imageDto;
-                })
-                .collect(Collectors.toList());
+        // Handle Images (optional)
+        List<ImageDto> imageDtos = new ArrayList<>();
+        if (files != null && files.length > 0) {
+            // Replace existing images (customize to append if needed)
+            product.getProductImages().clear();
+            for (MultipartFile file : files) {
+                ImageDto imageDto = imageService.uploadImageFile(file, bucketName, product.getId());
+                product.getProductImages().add(ProductCreationMapper.toProductImageEntity(product, imageDto));
+                imageDtos.add(imageDto);
+            }
+        } else {
+            // Retain existing images if no new files provided
+            imageDtos = product.getProductImages().stream()
+                    .map(image -> {
+                        ImageDto imageDto = new ImageDto();
+                        imageDto.setImageUrl(image.getImageUrl());
+                        return imageDto;
+                    })
+                    .collect(Collectors.toList());
+        }
 
-        // Construct response DTO
+        // Save updated product with all relationships
+        productRepository.save(product);
+
+        // Prepare response DTO
         ProductCreationDto responseDto = ProductCreationMapper.toDto(product, variantDtos, collectionDto, imageDtos);
-
-        // Populate product-level SKU and inventory if no variants
-//        if (product.getSku() != null && (product.getVariants() == null || product.getVariants().isEmpty())) {
-//            ProductCreationDto.SkuDto skuDto = new ProductCreationDto.SkuDto();
-//            skuDto.setSkuCode(product.getSku().getSkuCode());
-//            skuDto.setBarcode(product.getSku().getBarcode());
-//            if (product.getInventory() != null) {
-//                skuDto.setStockQuantity(product.getInventory().getStockQuantity());
-//            }
-//            responseDto.setProductSku(skuDto);
-//        }
-
-        logger.info("Retrieved product {} with details", product.getId());
+        logger.info("Updated product {} with details", product.getId());
         return responseDto;
+    }
+
+    @Override
+    public List<ProductDto> getAllProducts() {
+        try {
+            List<Product> all = productRepository.findAll();
+            return all.stream()
+                    .map(ProductMapper::toDto)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve all products", e);
+        }
     }
 }
