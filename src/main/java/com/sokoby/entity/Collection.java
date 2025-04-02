@@ -1,5 +1,7 @@
 package com.sokoby.entity;
 
+import com.sokoby.enums.CollectionType;
+import com.sokoby.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -22,7 +24,7 @@ public class Collection {
     private UUID id;
 
     @Column(name = "type", nullable = false)
-    private String type;
+    private String productType;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id", nullable = false)
@@ -33,6 +35,10 @@ public class Collection {
 
     @Column(name = "vendor")
     private String vendor;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private CollectionType type;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)

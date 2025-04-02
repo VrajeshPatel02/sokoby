@@ -92,4 +92,9 @@ public class ProductController {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/getByCollection")
+    public ResponseEntity<List<ProductDto>> getByCollection(@RequestParam String collectionType){
+        return ResponseEntity.ok(productService.getProductsByCollection(collectionType));
+    }
 }
