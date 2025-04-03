@@ -25,6 +25,7 @@ import com.sokoby.repository.InventoryRepository;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -345,8 +346,6 @@ public class ProductServiceImpl implements ProductService {
         if (dto.getStatus() != null) product.setStatus(dto.getStatus());
         if (dto.getComparedPrice() != null) product.setComparedPrice(dto.getComparedPrice());
 
-        // Handle SKU and Inventory for Product (if no variants in DTO)
-        if (dto.getVariants() == null || dto.getVariants().isEmpty()) {
             if (dto.getSkuCode() != null || dto.getStockQuantity() != null || dto.getBarcode() != null) {
                 SKU sku = product.getSku();
                 if (sku == null) {
@@ -376,8 +375,7 @@ public class ProductServiceImpl implements ProductService {
                         inventoryRepository.save(inventory);
                     }
                 }
-            }
-        } else {
+            } else {
             // If variants are provided, remove product-level SKU and inventory
             if (product.getSku() != null) {
                 if (product.getInventory() != null) {
@@ -396,8 +394,8 @@ public class ProductServiceImpl implements ProductService {
             List<Variant> existingVariants = product.getVariants();
             List<String> newSkuCodes = dto.getVariants().stream()
                     .map(ProductCreationDto.VariantDto::getSkuCode)
-                    .filter(skuCode -> skuCode != null)
-                    .collect(Collectors.toList());
+                    .filter(Objects::nonNull)
+                    .toList();
             for (Variant existingVariant : existingVariants) {
                 if (!newSkuCodes.contains(existingVariant.getSku().getSkuCode())) {
                     if (existingVariant.getInventoryItem() != null) {
@@ -474,19 +472,35 @@ public class ProductServiceImpl implements ProductService {
             collectionDto.setVendor(collection.getVendor());
         }
 
-        // Handle Images (optional)
+        // Handle Images (updated logic)
         List<ImageDto> imageDtos = new ArrayList<>();
+        List<ProductImage> existingImages = product.getProductImages() != null ? new ArrayList<>(product.getProductImages()) : new ArrayList<>();
+
+        // Delete specified images
+        if (dto.getRemoveImageIds() != null && !dto.getRemoveImageIds().isEmpty()) {
+            for (UUID removeImageId : dto.getRemoveImageIds()) {
+                if (imageService.deleteImage(removeImageId, bucketName, productId)) {
+                    existingImages.removeIf(image -> image.getId().equals(removeImageId));
+                    logger.info("Deleted image {} for product {}", removeImageId, productId);
+                } else {
+                    logger.warn("Failed to delete image {} for product {}", removeImageId, productId);
+                }
+            }
+            product.setProductImages(existingImages);
+        }
+
+        // Add new images (append to existing)
         if (files != null && files.length > 0) {
-            // Replace existing images (customize to append if needed)
-            product.getProductImages().clear();
             for (MultipartFile file : files) {
                 ImageDto imageDto = imageService.uploadImageFile(file, bucketName, product.getId());
-                product.getProductImages().add(ProductCreationMapper.toProductImageEntity(product, imageDto));
+                ProductImage newImage = ProductCreationMapper.toProductImageEntity(product, imageDto);
+                existingImages.add(newImage);
                 imageDtos.add(imageDto);
             }
+            product.setProductImages(existingImages);
         } else {
-            // Retain existing images if no new files provided
-            imageDtos = product.getProductImages().stream()
+            // Include remaining existing images in the response
+            imageDtos = existingImages.stream()
                     .map(image -> {
                         ImageDto imageDto = new ImageDto();
                         imageDto.setImageUrl(image.getImageUrl());

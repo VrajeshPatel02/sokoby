@@ -34,6 +34,29 @@ public class ImageServiceImpl implements ImageService {
     }
 
     @Override
+    public boolean deleteImage(UUID imageId, String bucketName, UUID productId) {
+        Optional<ProductImage> optionalImage = productImageRepository.findById(imageId);
+        if (optionalImage.isPresent()) {
+            ProductImage image = optionalImage.get();
+
+            // Extract the image URL or key for S3 deletion
+            String imageUrl = image.getImageUrl();
+            String fileName = extractFileNameFromUrl(imageUrl);
+
+            // Delete the file from S3 bucket
+            boolean isDeletedFromBucket = bucketService.deleteFile(fileName, bucketName);
+
+            if (isDeletedFromBucket) {
+                // Delete the image record from the database
+                productImageRepository.delete(image);
+                return true;
+            }
+        }
+
+        return false; // Return false if the image wasn't found or deletion failed
+    }
+
+    @Override
     public ImageDto uploadImageFile(MultipartFile file, String bucketName, UUID productId) {
         Optional<Product> product = productRepository.findById(productId);
         if(product.isPresent()){
@@ -60,29 +83,6 @@ public class ImageServiceImpl implements ImageService {
     public List<ImageDto> getImagesByProduct(UUID productId) {
         List<ProductImage> productImages= productImageRepository.findAllByProductId(productId);
         return productImages.stream().map(ProductImageMapper::toDto).collect(Collectors.toList());
-    }
-
-    @Override
-    public boolean deleteImage(UUID imageId, String bucketName, UUID productId) {
-        Optional<ProductImage> optionalImage = productImageRepository.findById(imageId);
-        if (optionalImage.isPresent()) {
-            ProductImage image = optionalImage.get();
-
-            // Extract the image URL or key for S3 deletion
-            String imageUrl = image.getImageUrl();
-            String fileName = extractFileNameFromUrl(imageUrl);
-
-            // Delete the file from S3 bucket
-            boolean isDeletedFromBucket = bucketService.deleteFile(fileName, bucketName);
-
-            if (isDeletedFromBucket) {
-                // Delete the image record from the database
-                productImageRepository.delete(image);
-                return true;
-            }
-        }
-
-        return false; // Return false if the image wasn't found or deletion failed
     }
 
     @Override
