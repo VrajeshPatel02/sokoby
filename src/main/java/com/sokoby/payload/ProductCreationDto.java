@@ -39,6 +39,8 @@ public class ProductCreationDto {
 
     private String barcode;
 
+    private List<UUID> removeImageIds; // New field for images to remove
+
     @Data
     public static class VariantDto {
         private UUID id;

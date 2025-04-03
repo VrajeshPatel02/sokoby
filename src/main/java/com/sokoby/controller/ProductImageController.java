@@ -32,4 +32,13 @@ public class ProductImageController {
         ProductCreationDto createdProduct = productService.createProductWithDetails(dto, files);
         return new ResponseEntity<>(createdProduct, HttpStatus.CREATED);
     }
+
+    @PutMapping("/update/{productId}/form-data")
+    public ResponseEntity<ProductCreationDto>  updateProductWithDetails(
+            @ModelAttribute ProductCreationDto dto,
+            @RequestParam(value = "files") MultipartFile[] files,
+            @PathVariable(value = "productId") UUID productId){
+        ProductCreationDto createdProduct = productService.updateProductWithDetails(productId,dto, files);
+        return new ResponseEntity<>(createdProduct, HttpStatus.ACCEPTED);
+    }
 }
