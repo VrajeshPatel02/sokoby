@@ -51,6 +51,12 @@ public class OrderController {
         return new ResponseEntity<>(createdOrder, HttpStatus.CREATED);
     }
 
+    @PostMapping("/with-customer-details")
+    public ResponseEntity<OrderDto> createOrderWithCustomerDetails(@RequestBody OrderDto dto) {
+        OrderDto createdOrder = orderService.createOrderWithCustomerDetails(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdOrder);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<OrderDto> updateOrder(@PathVariable UUID id, @RequestBody OrderDto dto) {
         OrderDto updatedOrder = orderService.updateOrder(id, dto);

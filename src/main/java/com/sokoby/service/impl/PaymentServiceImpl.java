@@ -26,138 +26,153 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-@Service
-public class PaymentServiceImpl implements PaymentService {
+    @Service
+    public class PaymentServiceImpl implements PaymentService {
 
-    private static final Logger logger = LoggerFactory.getLogger(PaymentServiceImpl.class);
+        private static final Logger logger = LoggerFactory.getLogger(PaymentServiceImpl.class);
 
-    private final PaymentRepository paymentRepository;
-    private final OrderRepository orderRepository;
+        private final PaymentRepository paymentRepository;
+        private final OrderRepository orderRepository;
 
-    @Value("${app.success.url}") // e.g., http://localhost:8080/payment/success
-    private String successUrl;
+        @Value("${app.success.url}")
+        private String successUrl;
 
-    @Value("${app.cancel.url}") // e.g., http://localhost:8080/payment/cancel
-    private String cancelUrl;
+        @Value("${app.cancel.url}")
+        private String cancelUrl;
 
-    @Autowired
-    public PaymentServiceImpl(PaymentRepository paymentRepository, OrderRepository orderRepository, @Value("${stripe.secret.key}") String stripeSecretKey)  {
-        this.paymentRepository = paymentRepository;
-        this.orderRepository = orderRepository;
-        Stripe.apiKey = stripeSecretKey; // Platform's secret key
-    }
+        private final String stripeSecretKey;
 
-    @Transactional
-    @Override
-    public String createPaymentSession(UUID orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
-
-        if (order.getStore().getStripeAccountId() == null) {
-            throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
+        @Autowired
+        public PaymentServiceImpl(PaymentRepository paymentRepository, OrderRepository orderRepository,
+                                  @Value("${stripe.secret.key}") String stripeSecretKey) {
+            this.paymentRepository = paymentRepository;
+            this.orderRepository = orderRepository;
+            this.stripeSecretKey = stripeSecretKey;
+            logger.info("Stripe secret key injected: {}", stripeSecretKey); // Log for debugging (mask in production)
+            if (stripeSecretKey == null || stripeSecretKey.trim().isEmpty()) {
+                throw new IllegalArgumentException("Stripe secret key is not configured in application.properties");
+            }
+            Stripe.apiKey = stripeSecretKey;
+            logger.info("Stripe API key set successfully");
         }
 
-        try {
-            // ✅ Create Stripe Checkout Session
-            SessionCreateParams params = SessionCreateParams.builder()
-                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD) // Cards
-                    .setMode(SessionCreateParams.Mode.PAYMENT)
-                    .setSuccessUrl(successUrl + "?orderId=" + order.getId()) // Redirect user on success
-                    .setCancelUrl(cancelUrl + "?orderId=" + order.getId()) // Redirect on cancel
-                    .addLineItem(
-                            SessionCreateParams.LineItem.builder()
-                                    .setPriceData(
-                                            SessionCreateParams.LineItem.PriceData.builder()
-                                                    .setCurrency("usd")
-                                                    .setUnitAmount((long) (order.getTotalAmount() * 100))
-                                                    .setProductData(
-                                                            SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                                                    .setName("Order #" + order.getId())
-                                                                    .build()
-                                                    )
-                                                    .build()
-                                    )
-                                    .setQuantity(1L)
-                                    .build()
-                    )
-                    .build();
+        @Transactional
+        @Override
+        public String createPaymentSession(UUID orderId) {
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
 
-            Session session = Session.create(params,
-                    com.stripe.net.RequestOptions.builder()
-                            .setStripeAccount(order.getStore().getStripeAccountId())
-                            .build());
+            if (order.getStore().getStripeAccountId() == null) {
+                throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
+            }
 
-            logger.info("Checkout session created for order {}: {}", orderId, session.getUrl());
-            return session.getUrl(); // ✅ Return checkout session URL
-        } catch (StripeException e) {
-            logger.error("Stripe payment error for order {}: {}", orderId, e.getMessage());
-            throw new MerchantException("Payment processing failed: " + e.getMessage(), "PAYMENT_PROCESSING_ERROR");
+            try {
+                if (Stripe.apiKey == null || Stripe.apiKey.trim().isEmpty()) {
+                    Stripe.apiKey = stripeSecretKey; // Re-set if necessary
+                    logger.warn("Stripe API key was null; reset to injected value");
+                }
+
+                SessionCreateParams params = SessionCreateParams.builder()
+                        .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
+                        .setMode(SessionCreateParams.Mode.PAYMENT)
+                        .setSuccessUrl(successUrl + "?orderId=" + order.getId())
+                        .setCancelUrl(cancelUrl + "?orderId=" + order.getId())
+                        .addLineItem(
+                                SessionCreateParams.LineItem.builder()
+                                        .setPriceData(
+                                                SessionCreateParams.LineItem.PriceData.builder()
+                                                        .setCurrency("usd")
+                                                        .setUnitAmount((long) (order.getTotalAmount() * 100))
+                                                        .setProductData(
+                                                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                                                        .setName("Order #" + order.getId())
+                                                                        .build()
+                                                        )
+                                                        .build()
+                                        )
+                                        .setQuantity(1L)
+                                        .build()
+                        )
+                        .build();
+
+                Session session = Session.create(params,
+                        com.stripe.net.RequestOptions.builder()
+                                .setStripeAccount(order.getStore().getStripeAccountId())
+                                .build());
+
+                logger.info("Checkout session created for order {}: {}", orderId, session.getUrl());
+                return session.getUrl();
+            } catch (StripeException e) {
+                logger.error("Stripe payment error for order {}: {}", orderId, e.getMessage());
+                throw new MerchantException("Payment processing failed: " + e.getMessage(), "PAYMENT_PROCESSING_ERROR");
+            }
         }
-    }
 
+        @Override
+        @Transactional
+        public PaymentDto createPayment(UUID orderId) {
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
 
-    @Override
-    @Transactional
-    public PaymentDto createPayment(UUID orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
+            if (order.getStore().getStripeAccountId() == null) {
+                throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
+            }
 
-        if (order.getStore().getStripeAccountId() == null) {
-            throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
+            try {
+                if (Stripe.apiKey == null || Stripe.apiKey.trim().isEmpty()) {
+                    Stripe.apiKey = stripeSecretKey; // Re-set if necessary
+                    logger.warn("Stripe API key was null; reset to injected value");
+                }
+
+                SessionCreateParams params = SessionCreateParams.builder()
+                        .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
+                        .setMode(SessionCreateParams.Mode.PAYMENT)
+                        .setSuccessUrl(successUrl + "?orderId=" + order.getId())
+                        .setCancelUrl(cancelUrl + "?orderId=" + order.getId())
+                        .addLineItem(
+                                SessionCreateParams.LineItem.builder()
+                                        .setPriceData(
+                                                SessionCreateParams.LineItem.PriceData.builder()
+                                                        .setCurrency("usd")
+                                                        .setUnitAmount((long) (order.getTotalAmount() * 100))
+                                                        .setProductData(
+                                                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                                                        .setName("Order #" + order.getId())
+                                                                        .build()
+                                                        )
+                                                        .build()
+                                        )
+                                        .setQuantity(1L)
+                                        .build()
+                        )
+                        .build();
+
+                Session session = Session.create(params,
+                        com.stripe.net.RequestOptions.builder()
+                                .setStripeAccount(order.getStore().getStripeAccountId())
+                                .build());
+
+                System.out.println("session Id: " + session.getId());
+
+                Payment payment = new Payment();
+                payment.setOrder(order);
+                payment.setAmount(order.getTotalAmount());
+                payment.setStripePaymentIntentId("payment" + PasswordGenerator.generatePassword(10));
+                payment.setStripeCheckoutSessionId(session.getId());
+                payment.setStatus(PaymentStatus.valueOf("PENDING".toUpperCase()));
+
+                Payment savedPayment = paymentRepository.save(payment);
+                logger.info("Created payment session {} for order {}", savedPayment.getId(), orderId);
+
+                PaymentDto dto = PaymentMapper.toDto(savedPayment);
+                dto.setStripeCheckoutSessionId(session.getId());
+                dto.setStripeCheckoutUrl(session.getUrl());
+                return dto;
+            } catch (StripeException e) {
+                logger.error("Stripe payment error for order {}: {}", orderId, e.getMessage());
+                throw new MerchantException("Payment processing failed: " + e.getMessage(), "PAYMENT_PROCESSING_ERROR");
+            }
         }
-
-        try {
-            // Create Stripe Checkout Session
-            SessionCreateParams params = SessionCreateParams.builder()
-                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD) // Debit/Credit Cards
-//                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.PAYPAL) // PayPal if enabled
-                    .setMode(SessionCreateParams.Mode.PAYMENT)
-                    .setSuccessUrl(successUrl + "?orderId=" + order.getId())
-                    .setCancelUrl(cancelUrl + "?orderId=" + order.getId())
-                    .addLineItem(
-                            SessionCreateParams.LineItem.builder()
-                                    .setPriceData(
-                                            SessionCreateParams.LineItem.PriceData.builder()
-                                                    .setCurrency("usd")
-                                                    .setUnitAmount((long) (order.getTotalAmount() * 100))
-                                                    .setProductData(
-                                                            SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                                                    .setName("Order #" + order.getId())
-                                                                    .build()
-                                                    )
-                                                    .build()
-                                    )
-                                    .setQuantity(1L)
-                                    .build()
-                    )
-                    .build();
-
-            Session session = Session.create(params,
-                    com.stripe.net.RequestOptions.builder()
-                            .setStripeAccount(order.getStore().getStripeAccountId())
-                            .build());
-
-            System.out.println("session Id: " + session.getId());
-
-            Payment payment = new Payment();
-            payment.setOrder(order);
-            payment.setAmount(order.getTotalAmount());
-            payment.setStripePaymentIntentId("payment"+PasswordGenerator.generatePassword(10));
-            payment.setStripeCheckoutSessionId(session.getId());
-            payment.setStatus(PaymentStatus.valueOf("pending".toUpperCase())); // Initial status; updated via webhook
-
-            Payment savedPayment = paymentRepository.save(payment);
-            logger.info("Created payment session {} for order {}", savedPayment.getId(), orderId);
-
-            PaymentDto dto = PaymentMapper.toDto(savedPayment);
-            dto.setStripeCheckoutSessionId(session.getId());
-            dto.setStripeCheckoutUrl(session.getUrl()); // Return URL for redirection
-            return  dto;
-        } catch (StripeException e) {
-            logger.error("Stripe payment error for order {}: {}", orderId, e.getMessage());
-            throw new MerchantException("Payment processing failed: " + e.getMessage(), "PAYMENT_PROCESSING_ERROR");
-        }
-    }
 
     @Override
     public PaymentDto getPaymentById(UUID id) {
