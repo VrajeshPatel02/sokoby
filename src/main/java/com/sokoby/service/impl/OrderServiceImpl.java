@@ -2,7 +2,6 @@ package com.sokoby.service.impl;
 
 import com.sokoby.entity.*;
 import com.sokoby.enums.OrderStatus;
-import com.sokoby.enums.PaymentStatus;
 import com.sokoby.exception.MerchantException;
 import com.sokoby.mapper.AddressMapper;
 import com.sokoby.payload.OrderDto;
@@ -12,19 +11,13 @@ import com.sokoby.mapper.OrderMapper;
 import com.sokoby.service.InventoryService;
 import com.sokoby.service.OrderService;
 import com.sokoby.service.PaymentService;
-import com.stripe.Stripe;
-import com.stripe.param.PaymentIntentConfirmParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.stripe.exception.StripeException;
-import com.stripe.model.PaymentIntent;
-import com.stripe.param.PaymentIntentCreateParams;
 
 import java.util.List;
 import java.util.UUID;
@@ -270,6 +263,85 @@ public class OrderServiceImpl implements OrderService {
         }
         if (current.equals(OrderStatus.SHIPPED) && next.equals(OrderStatus.PLACED)) {
             throw new MerchantException("Cannot revert SHIPPED to PLACED", "INVALID_STATUS_TRANSITION");
+        }
+    }
+
+    @Transactional
+    @CacheEvict(value = "orders", allEntries = true)
+    @Override
+    public OrderDto createOrderWithCustomerDetails(OrderDto dto) {
+        validateOrderInputWithCustomerDetails(dto);
+
+        Store store = storeRepository.findById(dto.getStoreId())
+                .orElseThrow(() -> new MerchantException("Store not found", "STORE_NOT_FOUND"));
+
+        if (store.getStripeAccountId() == null) {
+            throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
+        }
+
+        Order order = new Order();
+        order.setStore(store);
+        order.setCustomerEmail(dto.getCustomerEmail());
+        order.setCustomerFirstName(dto.getCustomerFirstName());
+        order.setCustomerLastName(dto.getCustomerLastName());
+        order.setCustomerPhoneNumber(dto.getCustomerPhoneNumber());
+        order.setShippingAddress(AddressMapper.toEntity(dto.getShippingAddress()));
+        order.setStatus(OrderStatus.PAYMENT_PENDING);
+
+        dto.getOrderItems().forEach(itemDto -> {
+            OrderItem item = new OrderItem();
+            item.setQuantity(itemDto.getQuantity());
+
+            if (itemDto.getProductId() != null && itemDto.getVariantId() == null) {
+                Product product = productRepository.findById(itemDto.getProductId())
+                        .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
+                if (!inventoryService.isAvailableForProduct(product.getId(), itemDto.getQuantity())) {
+                    throw new MerchantException("Insufficient stock for product: " + product.getId(), "INSUFFICIENT_STOCK");
+                }
+                item.setProduct(product);
+            } else if (itemDto.getVariantId() != null && itemDto.getProductId() == null) {
+                Variant variant = variantRepository.findById(itemDto.getVariantId())
+                        .orElseThrow(() -> new MerchantException("Variant not found", "VARIANT_NOT_FOUND"));
+                if (!inventoryService.isAvailable(variant.getId(), itemDto.getQuantity())) {
+                    throw new MerchantException("Insufficient stock for variant: " + variant.getId(), "INSUFFICIENT_STOCK");
+                }
+                item.setVariant(variant);
+            } else {
+                throw new MerchantException("Order item must specify exactly one of productId or variantId", "INVALID_ORDER_ITEM");
+            }
+
+            order.addOrderItem(item);
+        });
+
+        if (dto.getDiscountCode() != null) {
+            Discount discount = discountRepository.findByCode(dto.getDiscountCode())
+                    .orElseThrow(() -> new MerchantException("Invalid discount code", "INVALID_DISCOUNT_CODE"));
+            order.setDiscount(discount);
+        }
+
+        try {
+            order.calculateTotals();
+            Order savedOrder = orderRepository.save(order);
+
+            // Create payment session
+            PaymentDto paymentDto = paymentService.createPayment(savedOrder.getId());
+
+            OrderDto orderDto = OrderMapper.toDto(savedOrder);
+            orderDto.setPaymentUrl(paymentDto.getStripeCheckoutUrl());
+            return orderDto;
+        } catch (Exception e) {
+            logger.error("Failed to create order: {}", e.getMessage());
+            throw new RuntimeException("Order creation failed", e);
+        }
+    }
+
+    // Updated validation method for the new service method
+    private void validateOrderInputWithCustomerDetails(OrderDto dto) {
+        if (dto.getStoreId() == null) throw new MerchantException("Store ID cannot be null", "INVALID_STORE_ID");
+        if (dto.getShippingAddress() == null) throw new MerchantException("Shipping address cannot be null", "INVALID_SHIPPING_ADDRESS_ID");
+        if (dto.getOrderItems() == null || dto.getOrderItems().isEmpty()) throw new MerchantException("Order must have at least one item", "INVALID_ORDER_ITEMS");
+        if (dto.getCustomerId() == null && (dto.getCustomerEmail() == null || dto.getCustomerEmail().trim().isEmpty())) {
+            throw new MerchantException("Customer email is required when customerId is not provided", "INVALID_CUSTOMER_EMAIL");
         }
     }
 }

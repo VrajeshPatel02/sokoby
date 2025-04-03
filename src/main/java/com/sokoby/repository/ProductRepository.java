@@ -1,6 +1,7 @@
 package com.sokoby.repository;
 
 import com.sokoby.entity.Product;
+import com.sokoby.enums.CollectionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -26,4 +27,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             "(LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
             "OR LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<Product> searchProductsByStore(@Param("storeId") UUID storeId, @Param("query") String query, Pageable pageable);
+
+    @Query("SELECT p FROM Product p JOIN p.collections c WHERE c.type = :collectionType")
+    List<Product> findAllByCollectionType(@Param("collectionType") CollectionType collectionType);
+
 }

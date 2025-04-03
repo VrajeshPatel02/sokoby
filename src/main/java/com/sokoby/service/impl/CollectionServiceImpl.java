@@ -3,6 +3,7 @@ package com.sokoby.service.impl;
 import com.sokoby.entity.Collection;
 import com.sokoby.entity.Product;
 import com.sokoby.entity.Store;
+import com.sokoby.enums.CollectionType;
 import com.sokoby.exception.MerchantException;
 import com.sokoby.mapper.CollectionMapper;
 import com.sokoby.payload.CollectionDto;
@@ -105,7 +106,7 @@ public class CollectionServiceImpl implements CollectionService {
                 .orElseThrow(() -> new MerchantException("Collection not found", "COLLECTION_NOT_FOUND"));
 
         if (dto.getType() != null && !dto.getType().trim().isEmpty()) {
-            collection.setType(dto.getType());
+            collection.setType(CollectionType.valueOf(dto.getType().toUpperCase()));
         }
         if (dto.getVendor() != null) {
             collection.setVendor(dto.getVendor());

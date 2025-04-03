@@ -27,7 +27,7 @@ public class Order {
     private Store store;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
+    @JoinColumn(name = "customer_id")
     private Customer customer;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -59,6 +59,18 @@ public class Order {
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)
     private Date createdAt;
+
+    @Column(name = "customer_first_name", nullable = false)
+    private String customerFirstName;
+
+    @Column(name = "customer_last_name", nullable = false)
+    private String customerLastName;
+
+    @Column(name = "customer_phone_number", nullable = false)
+    private String customerPhoneNumber;
+
+    @Column(name = "customer_email", nullable = false)
+    private String customerEmail;
 
     @PrePersist
     protected void onCreate() {

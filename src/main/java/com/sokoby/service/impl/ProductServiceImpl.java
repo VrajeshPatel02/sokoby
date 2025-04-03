@@ -1,9 +1,9 @@
 package com.sokoby.service.impl;
 
 import com.sokoby.entity.*;
+import com.sokoby.enums.CollectionType;
 import com.sokoby.exception.MerchantException;
 import com.sokoby.mapper.ProductCreationMapper;
-import com.sokoby.mapper.ProductImageMapper;
 import com.sokoby.mapper.ProductMapper;
 import com.sokoby.payload.ImageDto;
 import com.sokoby.payload.ProductCreationDto;
@@ -274,6 +274,9 @@ public class ProductServiceImpl implements ProductService {
             }
             product.getCollections().add(collection);
             dto.getCollection().setId(collection.getId());
+            dto.getCollection().setProductType(collection.getProductType());
+            dto.getCollection().setType(collection.getType().toString());
+            dto.getCollection().setVendor(collection.getVendor());
             collectionDto = dto.getCollection();
         }
 
@@ -456,8 +459,9 @@ public class ProductServiceImpl implements ProductService {
             Collection collection = product.getCollections().isEmpty()
                     ? ProductCreationMapper.toCollectionEntity(dto.getCollection(), product.getStore(), product)
                     : product.getCollections().get(0);
-            if (dto.getCollection().getType() != null) collection.setType(dto.getCollection().getType());
+            if (dto.getCollection().getType() != null) collection.setProductType((dto.getCollection().getProductType()));
             if (dto.getCollection().getVendor() != null) collection.setVendor(dto.getCollection().getVendor());
+            if (dto.getCollection().getType() != null) collection.setType(CollectionType.valueOf(dto.getCollection().getType()));
             collection = collectionRepository.save(collection);
             if (product.getCollections().isEmpty()) {
                 product.setCollections(new ArrayList<>());
@@ -465,7 +469,8 @@ public class ProductServiceImpl implements ProductService {
             }
             collectionDto = new ProductCreationDto.CollectionDto();
             collectionDto.setId(collection.getId());
-            collectionDto.setType(collection.getType());
+            collectionDto.setProductType(collection.getProductType());
+            collectionDto.setType(collection.getType().toString());
             collectionDto.setVendor(collection.getVendor());
         }
 
@@ -508,6 +513,18 @@ public class ProductServiceImpl implements ProductService {
                     .collect(Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve all products", e);
+        }
+    }
+
+    @Override
+    public List<ProductDto> getProductsByCollection(String collectionType){
+        try {
+            List<Product> allByCollectionType = productRepository.findAllByCollectionType(CollectionType.valueOf(collectionType.toUpperCase()));
+            return allByCollectionType.stream()
+                    .map(ProductMapper::toDto)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new MerchantException("Collection not Found","COLLECTION_NOT_FOUND");
         }
     }
 }

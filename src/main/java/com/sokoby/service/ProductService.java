@@ -34,5 +34,7 @@ public interface ProductService {
 
     List<ProductDto> getAllProducts();
 
+    List<ProductDto> getProductsByCollection(String collectionType);
+
 //    ProductCreationDto updateProductWithDetails(UUID productId, ProductCreationDto dto, MultipartFile[] files);
 }

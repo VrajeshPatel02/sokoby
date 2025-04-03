@@ -1,6 +1,7 @@
 package com.sokoby.mapper;
 
 import com.sokoby.entity.*;
+import com.sokoby.enums.CollectionType;
 import com.sokoby.enums.ProductStatus;
 import com.sokoby.exception.MerchantException;
 import com.sokoby.payload.ImageDto;
@@ -67,8 +68,9 @@ public class ProductCreationMapper {
 
     public static Collection toCollectionEntity(ProductCreationDto.CollectionDto collectionDto, Store store, Product product) {
         Collection collection = new Collection();
-        collection.setType(collectionDto.getType());
+        collection.setProductType(collectionDto.getProductType());
         collection.setVendor(collectionDto.getVendor());
+        collection.setType(CollectionType.valueOf(collectionDto.getType().toUpperCase()));
         collection.setStore(store);
         if (collection.getProducts() == null) {
             collection.setProducts(new ArrayList<>());

@@ -53,7 +53,8 @@ public class ProductCreationDto {
     public static class CollectionDto {
         @NotBlank(message = "Type is required if collection is provided")
         private UUID id;
-        private String type;
+        private String productType;
         private String vendor;
+        private String type;
     }
 }

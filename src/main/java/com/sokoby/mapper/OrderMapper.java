@@ -20,6 +20,10 @@ public class OrderMapper {
         dto.setId(order.getId());
         dto.setStoreId(order.getStore() != null ? order.getStore().getId() : null);
         dto.setCustomerId(order.getCustomer() != null ? order.getCustomer().getId() : null);
+        dto.setCustomerEmail(order.getCustomerEmail());
+        dto.setCustomerFirstName(order.getCustomerFirstName());
+        dto.setCustomerLastName(order.getCustomerLastName());
+        dto.setCustomerPhoneNumber(order.getCustomerPhoneNumber());
         dto.setShippingAddress(AddressMapper.toDto(order.getShippingAddress()));
         dto.setOrderItems(order.getOrderItems().stream()
                 .map(OrderItemMapper::toDto)

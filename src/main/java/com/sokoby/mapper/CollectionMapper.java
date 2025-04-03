@@ -1,6 +1,7 @@
 package com.sokoby.mapper;
 
 import com.sokoby.entity.Collection;
+import com.sokoby.enums.CollectionType;
 import com.sokoby.payload.CollectionDto;
 
 import java.util.stream.Collectors;
@@ -18,7 +19,8 @@ public class CollectionMapper {
         CollectionDto dto = new CollectionDto();
         dto.setId(collection.getId());
         dto.setStoreId(collection.getStore().getId());
-        dto.setType(collection.getType());
+        dto.setProductType(collection.getProductType());
+        dto.setType(collection.getType().toString());
         dto.setVendor(collection.getVendor());
         dto.setCreatedAt(collection.getCreatedAt());
         dto.setUpdatedAt(collection.getUpdatedAt());
@@ -33,8 +35,9 @@ public class CollectionMapper {
 
         Collection collection = new Collection();
         collection.setId(dto.getId());
-        collection.setType(dto.getType());
+        collection.setType(CollectionType.valueOf(dto.getType().toUpperCase()));
         collection.setVendor(dto.getVendor());
+        collection.setProductType(dto.getProductType());
         // Store relationship set in service
         return collection;
     }

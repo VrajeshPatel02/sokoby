@@ -36,6 +36,12 @@ public class OrderDto {
 
     private String paymentMethodId;
 
+    // New customer detail fields (optional)
+    private String customerFirstName;
+    private String customerLastName;
+    private String customerPhoneNumber;
+    private String customerEmail;
+
     @NotNull
     private String status;
 

@@ -15,13 +15,15 @@ import java.util.UUID;
 public class CollectionDto {
     private UUID id;
 
-    private String type;
+    private String productType;
     @NotNull
     private UUID storeId;
 
     private String vendor;
 
     private List<ProductDto> products;
+
+    private String type;
 
     private Date createdAt;
     private Date updatedAt;
