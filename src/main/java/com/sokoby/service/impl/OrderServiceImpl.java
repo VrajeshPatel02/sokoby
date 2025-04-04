@@ -278,9 +278,9 @@ public class OrderServiceImpl implements OrderService {
         Store store = storeRepository.findById(dto.getStoreId())
                 .orElseThrow(() -> new MerchantException("Store not found", "STORE_NOT_FOUND"));
 
-        if (store.getStripeAccountId() == null) {
-            throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
-        }
+//        if (store.getStripeAccountId() == null) {
+//            throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
+//        }
 
         Order order = new Order();
         order.setStore(store);
@@ -330,7 +330,7 @@ public class OrderServiceImpl implements OrderService {
             PaymentDto paymentDto = paymentService.createPayment(savedOrder.getId());
 
             OrderDto orderDto = OrderMapper.toDto(savedOrder);
-            orderDto.setPaymentUrl(paymentDto.getStripeCheckoutUrl());
+            orderDto.setPaymentId(paymentDto.getId());
             return orderDto;
         } catch (Exception e) {
             logger.error("Failed to create order: {}", e.getMessage());
