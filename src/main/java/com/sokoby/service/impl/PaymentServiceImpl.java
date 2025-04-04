@@ -62,10 +62,6 @@ import java.util.UUID;
             Order order = orderRepository.findById(orderId)
                     .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
 
-            if (order.getStore().getStripeAccountId() == null) {
-                throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
-            }
-
             try {
                 if (Stripe.apiKey == null || Stripe.apiKey.trim().isEmpty()) {
                     Stripe.apiKey = stripeSecretKey; // Re-set if necessary
@@ -95,11 +91,10 @@ import java.util.UUID;
                         )
                         .build();
 
-                Session session = Session.create(params,
-                        com.stripe.net.RequestOptions.builder()
-                                .setStripeAccount(order.getStore().getStripeAccountId())
-                                .build());
-
+                Session session = Session.create(params);
+                Payment payment = paymentRepository.findByOrderId(orderId).orElseThrow(()->new MerchantException("Order Not Found", "ORDER_NOT_FOUND"));
+                payment.setStripePaymentIntentId(session.getPaymentIntent());
+                payment.setStripeCheckoutSessionId(session.getId());
                 logger.info("Checkout session created for order {}: {}", orderId, session.getUrl());
                 return session.getUrl();
             } catch (StripeException e) {
@@ -114,61 +109,56 @@ import java.util.UUID;
             Order order = orderRepository.findById(orderId)
                     .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
 
-            if (order.getStore().getStripeAccountId() == null) {
-                throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
-            }
+//            if (order.getStore().getStripeAccountId() == null) {
+//                throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
+//            }
 
             try {
-                if (Stripe.apiKey == null || Stripe.apiKey.trim().isEmpty()) {
-                    Stripe.apiKey = stripeSecretKey; // Re-set if necessary
-                    logger.warn("Stripe API key was null; reset to injected value");
-                }
-
-                SessionCreateParams params = SessionCreateParams.builder()
-                        .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
-                        .setMode(SessionCreateParams.Mode.PAYMENT)
-                        .setSuccessUrl(successUrl + "?orderId=" + order.getId())
-                        .setCancelUrl(cancelUrl + "?orderId=" + order.getId())
-                        .addLineItem(
-                                SessionCreateParams.LineItem.builder()
-                                        .setPriceData(
-                                                SessionCreateParams.LineItem.PriceData.builder()
-                                                        .setCurrency("usd")
-                                                        .setUnitAmount((long) (order.getTotalAmount() * 100))
-                                                        .setProductData(
-                                                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                                                        .setName("Order #" + order.getId())
-                                                                        .build()
-                                                        )
-                                                        .build()
-                                        )
-                                        .setQuantity(1L)
-                                        .build()
-                        )
-                        .build();
-
-                Session session = Session.create(params,
-                        com.stripe.net.RequestOptions.builder()
-                                .setStripeAccount(order.getStore().getStripeAccountId())
-                                .build());
-
-                System.out.println("session Id: " + session.getId());
+//                if (Stripe.apiKey == null || Stripe.apiKey.trim().isEmpty()) {
+//                    Stripe.apiKey = stripeSecretKey; // Re-set if necessary
+//                    logger.warn("Stripe API key was null; reset to injected value");
+//                }
+//
+//                SessionCreateParams params = SessionCreateParams.builder()
+//                        .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
+//                        .setMode(SessionCreateParams.Mode.PAYMENT)
+//                        .setSuccessUrl(successUrl + "?orderId=" + order.getId())
+//                        .setCancelUrl(cancelUrl + "?orderId=" + order.getId())
+//                        .addLineItem(
+//                                SessionCreateParams.LineItem.builder()
+//                                        .setPriceData(
+//                                                SessionCreateParams.LineItem.PriceData.builder()
+//                                                        .setCurrency("usd")
+//                                                        .setUnitAmount((long) (order.getTotalAmount() * 100))
+//                                                        .setProductData(
+//                                                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
+//                                                                        .setName("Order #" + order.getId())
+//                                                                        .build()
+//                                                        )
+//                                                        .build()
+//                                        )
+//                                        .setQuantity(1L)
+//                                        .build()
+//                        )
+//                        .build();
+//
+//                Session session = Session.create(params);
 
                 Payment payment = new Payment();
                 payment.setOrder(order);
                 payment.setAmount(order.getTotalAmount());
                 payment.setStripePaymentIntentId("payment" + PasswordGenerator.generatePassword(10));
-                payment.setStripeCheckoutSessionId(session.getId());
+//                payment.setStripeCheckoutSessionId(session.getId());
                 payment.setStatus(PaymentStatus.valueOf("PENDING".toUpperCase()));
 
                 Payment savedPayment = paymentRepository.save(payment);
                 logger.info("Created payment session {} for order {}", savedPayment.getId(), orderId);
 
                 PaymentDto dto = PaymentMapper.toDto(savedPayment);
-                dto.setStripeCheckoutSessionId(session.getId());
-                dto.setStripeCheckoutUrl(session.getUrl());
+//                dto.setStripeCheckoutSessionId(session.getId());
+//                dto.setStripeCheckoutUrl(session.getUrl());
                 return dto;
-            } catch (StripeException e) {
+            } catch (Exception e) {
                 logger.error("Stripe payment error for order {}: {}", orderId, e.getMessage());
                 throw new MerchantException("Payment processing failed: " + e.getMessage(), "PAYMENT_PROCESSING_ERROR");
             }

@@ -16,13 +16,7 @@ import com.sokoby.entity.Order;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
@@ -46,7 +40,7 @@ public class PaymentController {
         this.orderRepository = orderRepository;
     }
 
-    @PostMapping("/order/{orderId}")
+    @PostMapping("/order/{id}")
     public ResponseEntity<PaymentDto> createPayment(@PathVariable UUID orderId) {
         PaymentDto payment = paymentService.createPayment(orderId);
         return new ResponseEntity<>(payment, HttpStatus.CREATED);
@@ -62,6 +56,11 @@ public class PaymentController {
     public ResponseEntity<PaymentDto> getPaymentByOrderId(@PathVariable UUID orderId) {
         PaymentDto payment = paymentService.getPaymentByOrderId(orderId);
         return ResponseEntity.ok(payment);
+    }
+    @GetMapping("/checkout/{orderId}")
+    public ResponseEntity<String> getCheckoutUrl(@PathVariable UUID orderId){
+        String paymentSession = paymentService.createPaymentSession(orderId);
+        return ResponseEntity.ok(paymentSession);
     }
     @PostMapping("/webhook")
     public ResponseEntity<Void> handleStripeWebhook(@RequestBody String payload,
