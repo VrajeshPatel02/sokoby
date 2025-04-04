@@ -10,6 +10,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -54,6 +55,7 @@ public class StoreController {
     }
 
     @PutMapping("/update/{id}")
+    @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<StoreDto> updateStore(
             @PathVariable UUID id,
             @RequestBody StoreDto dto) {
@@ -61,6 +63,7 @@ public class StoreController {
     }
 
     @DeleteMapping("/delete/{id}")
+    @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<Void> deleteStore(@PathVariable UUID id) {
         storeService.deleteStore(id);
         return ResponseEntity.noContent().build();

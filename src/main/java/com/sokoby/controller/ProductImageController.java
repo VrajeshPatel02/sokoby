@@ -6,6 +6,7 @@ import com.sokoby.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,6 +19,7 @@ public class ProductImageController {
     private ProductService productService;
 
     @PostMapping("/create/{storeId}/images")
+    @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<ProductDto> createProduct(
             @RequestParam("files") MultipartFile[] files,
             @PathVariable UUID storeId,
@@ -26,6 +28,7 @@ public class ProductImageController {
     }
 
     @PostMapping("/create/form-data")
+    @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<ProductCreationDto> createProductWithDetails(
             @ModelAttribute ProductCreationDto dto,
             @RequestParam(value = "files") MultipartFile[] files) {
@@ -34,6 +37,7 @@ public class ProductImageController {
     }
 
     @PutMapping("/update/{productId}/form-data")
+    @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<ProductCreationDto>  updateProductWithDetails(
             @ModelAttribute ProductCreationDto dto,
             @RequestParam(value = "files") MultipartFile[] files,

@@ -119,7 +119,7 @@ public class OrderServiceImpl implements OrderService {
                     savedOrder.getId(), customer.getId(), store.getId());
 
             OrderDto orderDto = OrderMapper.toDto(savedOrder);
-            orderDto.setPaymentUrl(paymentDto.getStripeCheckoutUrl()); // Return the Stripe session URL to the frontend
+//            orderDto.setPaymentUrl(paymentDto.getStripeCheckoutUrl()); // Return the Stripe session URL to the frontend
             return orderDto;
         } catch (Exception e) {
             e.printStackTrace();

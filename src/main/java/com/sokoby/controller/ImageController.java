@@ -7,6 +7,7 @@ import com.sokoby.service.StoreService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,6 +22,7 @@ public class ImageController {
     private StoreService storeService;
 
     @PostMapping("api/image/upload/file/{bucketName}/product/{productId}")
+    @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<ImageDto> uploadFile(@RequestParam MultipartFile file,
                                                @PathVariable String bucketName,
                                                @PathVariable UUID productId){
@@ -29,6 +31,7 @@ public class ImageController {
     }
 
     @DeleteMapping("api/image/delete/file/{bucketName}/product/{productId}")
+    @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<?> deleteImage(@RequestParam UUID imageId,
                                          @PathVariable String bucketName,
                                          @PathVariable UUID productId) {
@@ -41,6 +44,7 @@ public class ImageController {
     }
 
     @PostMapping("/api/store/create/{merchantId}")
+    @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<StoreDto> createStore(
             @PathVariable UUID merchantId,
             @ModelAttribute StoreDto dto,
