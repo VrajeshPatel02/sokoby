@@ -67,9 +67,9 @@ public class OrderServiceImpl implements OrderService {
         Customer customer = customerRepository.findById(dto.getCustomerId())
                 .orElseThrow(() -> new MerchantException("Customer not found", "CUSTOMER_NOT_FOUND"));
 
-        if (store.getStripeAccountId() == null) {
-            throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
-        }
+//        if (store.getStripeAccountId() == null) {
+//            throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
+//        }
 
         Order order = new Order();
         order.setStore(store);
@@ -120,6 +120,9 @@ public class OrderServiceImpl implements OrderService {
 
             OrderDto orderDto = OrderMapper.toDto(savedOrder);
 //            orderDto.setPaymentUrl(paymentDto.getStripeCheckoutUrl()); // Return the Stripe session URL to the frontend
+            orderDto.setPaymentId(paymentDto.getId());
+
+
             return orderDto;
         } catch (Exception e) {
             e.printStackTrace();
