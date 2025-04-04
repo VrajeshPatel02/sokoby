@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +27,7 @@ public class ProductController {
     }
 
     @PostMapping("/create/{storeId}")
+    @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<ProductDto> createProduct(
             @PathVariable UUID storeId,
             @RequestBody ProductDto dto) {
@@ -81,6 +83,7 @@ public class ProductController {
     }
 
     @PutMapping("/update/{id}")
+    @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<ProductDto> updateProduct(
             @PathVariable UUID id,
             @RequestBody ProductDto dto) {
@@ -88,6 +91,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/delete/{id}")
+    @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<Void> deleteProduct(@PathVariable UUID id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();

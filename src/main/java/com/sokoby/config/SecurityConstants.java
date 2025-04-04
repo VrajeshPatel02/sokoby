@@ -7,17 +7,25 @@ public final class SecurityConstants {
 
     // Public endpoints
     public static final String[] PUBLIC_ENDPOINTS = {
-        "/api/auth/**","/api/customer/create/{id}", "/payment/webhook", "/payment/**"
+        "/api/auth/**",
+            "/api/customer/create/{id}",
+            "/payment/webhook",
+            "/payment/**",
+            "/api/cart/**",
+            "/api/product/**"
     };
 
     // Merchant endpoints
     public static final String[] MERCHANT_ENDPOINTS = {
-            "/api/merchant/**"
+            "/api/merchant/**",
+            "/api/discounts/**",
+            "/api/inventory/**"
     };
 
     // Customer endpoints
     public static final String[] CUSTOMER_ENDPOINTS = {
-            "/api/customer/**"
+            "/api/customer/**",
+            "/api/reviews","/api/reviews/{id}"
     };
 
     // OAuth2 login page

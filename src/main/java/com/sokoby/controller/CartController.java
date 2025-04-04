@@ -21,13 +21,11 @@ public class CartController {
     }
 
     @GetMapping("/{customerId}")
-    @PreAuthorize("hasRole('CUSTOMER') and authentication.principal.id == #customerId")
     public ResponseEntity<CartDto> getCart(@PathVariable UUID customerId) {
         return ResponseEntity.ok(cartService.getOrCreateCartByCustomerId(customerId));
     }
 
     @PostMapping("/{customerId}/add")
-    @PreAuthorize("hasRole('CUSTOMER') and authentication.principal.id == #customerId")
     public ResponseEntity<CartDto> addItemToCart(
             @PathVariable UUID customerId,
             @RequestBody CartItemDto itemDto) {
@@ -35,7 +33,6 @@ public class CartController {
     }
 
     @PutMapping("/{customerId}/update/{cartItemId}")
-    @PreAuthorize("hasRole('CUSTOMER') and authentication.principal.id == #customerId")
     public ResponseEntity<CartDto> updateCartItem(
             @PathVariable UUID customerId,
             @PathVariable UUID cartItemId,
@@ -44,7 +41,6 @@ public class CartController {
     }
 
     @DeleteMapping("/{customerId}/remove/{cartItemId}")
-    @PreAuthorize("hasRole('CUSTOMER') and authentication.principal.id == #customerId")
     public ResponseEntity<CartDto> removeItemFromCart(
             @PathVariable UUID customerId,
             @PathVariable UUID cartItemId) {
@@ -52,7 +48,6 @@ public class CartController {
     }
 
     @DeleteMapping("/{customerId}/clear")
-    @PreAuthorize("hasRole('CUSTOMER') and authentication.principal.id == #customerId")
     public ResponseEntity<Void> clearCart(@PathVariable UUID customerId) {
         cartService.clearCart(customerId);
         return ResponseEntity.noContent().build();
