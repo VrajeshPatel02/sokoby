@@ -1,5 +1,6 @@
 package com.sokoby.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,6 +15,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Store {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -22,6 +24,7 @@ public class Store {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "merchant_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Merchant merchant;
 
     @Column(name = "name", nullable = false)

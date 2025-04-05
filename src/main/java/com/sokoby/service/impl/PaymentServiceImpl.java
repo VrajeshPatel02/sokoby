@@ -71,7 +71,7 @@ import java.util.UUID;
                 SessionCreateParams params = SessionCreateParams.builder()
                         .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
                         .setMode(SessionCreateParams.Mode.PAYMENT)
-                        .setSuccessUrl(successUrl + "?orderId=" + order.getId())
+                        .setSuccessUrl(successUrl + order.getStore().getId()+ "/order-success" + "?orderId=" + order.getId())
                         .setCancelUrl(cancelUrl + "?orderId=" + order.getId())
                         .addLineItem(
                                 SessionCreateParams.LineItem.builder()
