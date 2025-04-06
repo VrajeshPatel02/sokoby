@@ -9,6 +9,7 @@ import com.sokoby.enums.PaymentStatus;
 import com.sokoby.enums.SubscriptionStatus;
 import com.sokoby.exception.MerchantException;
 import com.sokoby.mapper.PaymentMapper;
+import com.sokoby.mapper.SubscriptionMapper;
 import com.sokoby.payload.PaymentDto;
 import com.sokoby.payload.SubscriptionDto;
 import com.sokoby.repository.MerchantRepository;
@@ -159,8 +160,11 @@ import java.util.UUID;
         Payment payment = paymentRepository.findByStripeCheckoutSessionId(sessionId)
                 .orElseThrow(() -> new MerchantException("Payment not found for session", "PAYMENT_NOT_FOUND"));
 
-        payment.setStatus(PaymentStatus.COMPETED);
+        payment.setStatus(PaymentStatus.SUCCESS);
         paymentRepository.save(payment);
+
+        Order order = orderRepository.findByPaymentId(payment.getId()).orElseThrow(() -> new MerchantException("Order not found for payment", "ORDER_NOT_FOUND"));
+        order.setStatus(OrderStatus.PLACED);
         logger.info("Payment confirmed for session {}", sessionId);
 
         return PaymentMapper.toDto(payment);
@@ -210,7 +214,7 @@ import java.util.UUID;
             logger.warn("Could not find payment or order for failed payment intent: {}", paymentIntentId);
         }
     }
-
+        @Transactional
         @Override
         public String createSubscriptionSession(SubscriptionDto subscriptionDto) {
             Merchant merchant = merchantRepository.findById(subscriptionDto.getMerchant())
@@ -250,11 +254,17 @@ import java.util.UUID;
                         .build();
 
                 Session session = Session.create(params);
-                Subscription subscription = new Subscription();
+                Subscription subscription = SubscriptionMapper.toEntity(subscriptionDto);
                 subscription.setMerchant(merchant);
                 subscription.setStatus(SubscriptionStatus.PENDING);
-                subscription.setStripeCheckoutSessionId(session.getId()); // Store Checkout Session ID
+                subscription.setStripeCheckoutSessionId(session.getId());
                 subscriptionRepository.save(subscription);
+
+                Payment payment = new Payment();
+                payment.setStatus(PaymentStatus.PENDING);
+                payment.setStripeCheckoutSessionId(session.getId());
+                payment.setAmount(subscriptionDto.getAmount());
+                paymentRepository.save(payment);
                 logger.info("Subscription session created with ID: {}", session.getId());
                 return session.getUrl();
             } catch (StripeException e) {

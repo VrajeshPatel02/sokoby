@@ -1,8 +1,10 @@
 package com.sokoby.controller;
 
+import com.sokoby.entity.Merchant;
 import com.sokoby.entity.Order;
 import com.sokoby.enums.OrderStatus;
 import com.sokoby.exception.MerchantException;
+import com.sokoby.repository.MerchantRepository;
 import com.sokoby.repository.OrderRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,47 +23,41 @@ public class PaymentOutcomeController {
 
     private static final Logger logger = LoggerFactory.getLogger(PaymentOutcomeController.class);
 
-    private final OrderRepository orderRepository;
+    private final MerchantRepository merchantRepository;
 
     @Autowired
-    public PaymentOutcomeController(OrderRepository orderRepository) {
-        this.orderRepository = orderRepository;
+    public PaymentOutcomeController(MerchantRepository merchantRepository) {
+        this.merchantRepository = merchantRepository;
     }
 
     @GetMapping("/success")
-    public ResponseEntity<String> handlePaymentSuccess(@RequestParam("orderId") UUID orderId) {
+    public ResponseEntity<String> handlePaymentSuccess(@RequestParam("merchantId") UUID merchantId) {
         try {
-            Order order = orderRepository.findById(orderId)
+            Merchant merchant = merchantRepository.findById(merchantId)
                     .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
 
             // For testing, log success and optionally update order status
-            logger.info("Payment successful for order: {}", orderId);
+            logger.info("Payment successful for merchant: {}", merchantId);
 
-            order.setStatus(OrderStatus.PLACED);
-            orderRepository.save(order);
-
-            return ResponseEntity.ok("Payment successful for order: " + orderId);
+            return ResponseEntity.ok("Payment successful for merchant: " + merchantId);
         } catch (MerchantException e) {
-            logger.error("Error handling payment success for order {}: {}", orderId, e.getMessage());
+            logger.error("Error handling payment success for order {}: {}", merchantId, e.getMessage());
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
     }
 
     @GetMapping("/cancel")
-    public ResponseEntity<String> handlePaymentCancel(@RequestParam("orderId") UUID orderId) {
+    public ResponseEntity<String> handlePaymentCancel(@RequestParam("merchantId") UUID merchantId) {
         try {
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
+            Merchant merchant = merchantRepository.findById(merchantId)
+                    .orElseThrow(() -> new MerchantException("Merchant not found", "MERCHANT_NOT_FOUND"));
 
             // For testing, log cancellation and optionally update order status
-            logger.info("Payment cancelled for order: {}", orderId);
+            logger.info("Payment cancelled for merchant: {}", merchantId);
 
-            order.setStatus(OrderStatus.CANCELED);
-            orderRepository.save(order);
-
-            return ResponseEntity.ok("Payment cancelled for order: " + orderId);
+            return ResponseEntity.ok("Payment cancelled for merchant: " + merchantId);
         } catch (MerchantException e) {
-            logger.error("Error handling payment cancellation for order {}: {}", orderId, e.getMessage());
+            logger.error("Error handling payment cancellation for merchant {}: {}", merchantId, e.getMessage());
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
     }

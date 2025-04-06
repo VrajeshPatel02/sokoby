@@ -21,7 +21,7 @@ public class Payment {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
+    @JoinColumn(name = "order_id")
     private Order order;
 
     @Column(name = "amount", nullable = false)
@@ -30,6 +30,7 @@ public class Payment {
     @Column(name = "currency", nullable = false)
     private String currency = "usd"; // Default to USD, adjust as needed
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private PaymentStatus status;
 
