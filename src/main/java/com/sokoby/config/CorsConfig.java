@@ -34,7 +34,7 @@ public class CorsConfig {
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/", config); // Apply to all paths including OAuth2
+        source.registerCorsConfiguration("/**", config); // Apply to all paths including OAuth2
         return source;
     }
 }
