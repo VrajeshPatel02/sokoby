@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class SubscriptionMapper {
 
-    public SubscriptionDto toDto(Subscription subscription) {
+    public static SubscriptionDto toDto(Subscription subscription) {
         if (subscription == null) {
             return null;
         }
@@ -23,20 +23,14 @@ public class SubscriptionMapper {
         return dto;
     }
 
-    public Subscription toEntity(SubscriptionDto dto) {
+    public static Subscription toEntity(SubscriptionDto dto) {
         if (dto == null) {
             return null;
         }
         Subscription subscription = new Subscription();
         subscription.setId(dto.getId());
-        // Merchant is typically set by the service layer using merchantRepository.findById(dto.getMerchant())
-        subscription.setAmount(dto.getAmount()); // Assuming Subscription has an amount field; adjust if not
-        subscription.setInterval(dto.getInterval()); // Assuming Subscription has an interval field; adjust if not
-        subscription.setStripeCheckoutSessionId(dto.getStripeCheckoutSessionId());
-        subscription.setStripeSubscriptionId(dto.getStripeSubscriptionId());
-        if (dto.getStatus() != null) {
-            subscription.setStatus(SubscriptionStatus.valueOf(dto.getStatus()));
-        }
+        subscription.setAmount(dto.getAmount());
+        subscription.setInterval(dto.getInterval());
         return subscription;
     }
 }

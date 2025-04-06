@@ -12,7 +12,6 @@ import com.sokoby.repository.SubscriptionRepository;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.PaymentIntent;
-import com.stripe.model.checkout.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -115,7 +114,8 @@ public class WebhookService {
             JsonObject jsonEvent = JsonParser.parseString(payload).getAsJsonObject();
             JsonObject object = jsonEvent.getAsJsonObject("data").getAsJsonObject("object");
             String paymentIntentId = object.get("id").getAsString();
-            Payment payment = paymentRepository.findByStripeCheckoutSessionId(paymentIntentId).orElseThrow(() -> new MerchantException("Payment not found by payment intent", "PAYMENT_NOT_FOUND"));
+            Payment payment = paymentRepository.findByStripeCheckoutSessionId(paymentIntentId)
+                    .orElseThrow(() -> new MerchantException("Payment not found by payment intent", "PAYMENT_NOT_FOUND"));
 
             String failureMessage = "Unknown error";
             if (object.has("last_payment_error") && !object.get("last_payment_error").isJsonNull()) {
