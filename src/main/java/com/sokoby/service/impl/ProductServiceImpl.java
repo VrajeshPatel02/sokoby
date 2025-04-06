@@ -1,16 +1,11 @@
 package com.sokoby.service.impl;
 
-import com.sokoby.entity.*;
-import com.sokoby.enums.CollectionType;
-import com.sokoby.exception.MerchantException;
-import com.sokoby.mapper.ProductCreationMapper;
-import com.sokoby.mapper.ProductMapper;
-import com.sokoby.payload.ImageDto;
-import com.sokoby.payload.ProductCreationDto;
-import com.sokoby.payload.ProductDto;
-import com.sokoby.repository.*;
-import com.sokoby.service.ImageService;
-import com.sokoby.service.ProductService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,13 +16,30 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import com.sokoby.repository.InventoryRepository;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sokoby.entity.Collection;
+import com.sokoby.entity.Inventory;
+import com.sokoby.entity.Product;
+import com.sokoby.entity.ProductImage;
+import com.sokoby.entity.SKU;
+import com.sokoby.entity.Store;
+import com.sokoby.entity.Variant;
+import com.sokoby.enums.CollectionType;
+import com.sokoby.exception.MerchantException;
+import com.sokoby.mapper.ProductCreationMapper;
+import com.sokoby.mapper.ProductMapper;
+import com.sokoby.payload.ImageDto;
+import com.sokoby.payload.ProductCreationDto;
+import com.sokoby.payload.ProductDto;
+import com.sokoby.repository.CollectionRepository;
+import com.sokoby.repository.InventoryRepository;
+import com.sokoby.repository.ProductRepository;
+import com.sokoby.repository.SKURepository;
+import com.sokoby.repository.StoreRepository;
+import com.sokoby.repository.VariantRepository;
+import com.sokoby.service.ImageService;
+import com.sokoby.service.ProductService;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -307,12 +319,36 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
 
+        // Create a list of unique images to prevent duplicates
+        List<ImageDto> uniqueImageDtos = product.getProductImages() != null 
+            ? product.getProductImages().stream()
+                .map(image -> {
+                    ImageDto imageDto = new ImageDto();
+                    imageDto.setId(image.getId());
+                    imageDto.setImageUrl(image.getImageUrl());
+                    imageDto.setProductId(product.getId());
+                    return imageDto;
+                })
+                .collect(Collectors.toList())
+            : new ArrayList<>();
+
+        // Ensure no duplicate image URLs
+        uniqueImageDtos = uniqueImageDtos.stream()
+            .collect(Collectors.toMap(
+                ImageDto::getImageUrl, 
+                img -> img, 
+                (existing, replacement) -> existing
+            ))
+            .values()
+            .stream()
+            .collect(Collectors.toList());
+
         // Construct response DTO using existing mapper
         ProductCreationDto responseDto = ProductCreationMapper.toDto(
                 product,
                 null, // Pass null for variantDtos since mapper will populate from product.variants
-                null, // Pass null for collectionDto since mapper will  populatefrom product.collections
-                null  // Pass null for imageDtos since mapper will populate from product.productImages
+                null, // Pass null for collectionDto since mapper will populate from product.collections
+                uniqueImageDtos  // Pass unique images
         );
 
         logger.info("Retrieved product {} with details", product.getId());
@@ -539,6 +575,139 @@ public class ProductServiceImpl implements ProductService {
                     .collect(Collectors.toList());
         } catch (Exception e) {
             throw new MerchantException("Collection not Found","COLLECTION_NOT_FOUND");
+        }
+    }
+
+    @Override
+    @Transactional
+    public ProductDto updateProductWithMultipart(UUID productId, String productDataJson, List<MultipartFile> newImages) {
+        try {
+            // Parse JSON to ProductDto
+            ObjectMapper objectMapper = new ObjectMapper();
+            ProductCreationDto dto = objectMapper.readValue(productDataJson, ProductCreationDto.class);
+
+            // Validate mandatory fields if provided
+            if (dto.getTitle() != null && dto.getTitle().trim().isEmpty()) {
+                throw new MerchantException("Product title cannot be empty", "INVALID_PRODUCT_TITLE");
+            }
+
+            // Fetch existing product
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new MerchantException("Product not found", "PRODUCT_NOT_FOUND"));
+
+            // Update basic product fields if provided
+            if (dto.getTitle() != null) product.setTitle(dto.getTitle());
+            if (dto.getDescription() != null) product.setDescription(dto.getDescription());
+            if (dto.getPrice() != null) product.setPrice(dto.getPrice());
+            if (dto.getStatus() != null) product.setStatus(dto.getStatus());
+            if (dto.getComparedPrice() != null) product.setComparedPrice(dto.getComparedPrice());
+
+            // Handle SKU and Inventory
+            if (dto.getSkuCode() != null || dto.getStockQuantity() != null || dto.getBarcode() != null) {
+                SKU sku = product.getSku();
+                if (sku == null) {
+                    sku = ProductCreationMapper.toSkuEntity(dto.getSkuCode(), dto.getBarcode(), skuRepository);
+                    sku = skuRepository.save(sku);
+                    product.setSku(sku);
+                } else {
+                    if (dto.getSkuCode() != null && !dto.getSkuCode().equals(sku.getSkuCode())) {
+                        sku.setSkuCode(dto.getSkuCode());
+                    }
+                    if (dto.getBarcode() != null && !dto.getBarcode().equals(sku.getBarcode())) {
+                        sku.setBarcode(dto.getBarcode());
+                    }
+                    skuRepository.save(sku);
+                }
+                if (dto.getStockQuantity() != null) {
+                    Inventory inventory = product.getInventory();
+                    if (inventory == null) {
+                        inventory = ProductCreationMapper.toInventoryEntity(sku, dto.getStockQuantity());
+                        inventory = inventoryRepository.save(inventory);
+                        product.setInventory(inventory);
+                    } else {
+                        inventory.setStockQuantity(dto.getStockQuantity());
+                        inventoryRepository.save(inventory);
+                    }
+                }
+            }
+
+            // Handle Variants (optional)
+            if (dto.getVariants() != null) {
+                List<Variant> existingVariants = product.getVariants();
+                List<Variant> updatedVariants = new ArrayList<>();
+
+                for (ProductCreationDto.VariantDto variantDto : dto.getVariants()) {
+                    Variant variant = existingVariants.stream()
+                            .filter(v -> v.getSku().getSkuCode().equals(variantDto.getSkuCode()))
+                            .findFirst()
+                            .orElseGet(() -> {
+                                Variant newVariant = ProductCreationMapper.toVariantEntity(variantDto, product);
+                                SKU newSku = ProductCreationMapper.toSkuEntity(variantDto.getSkuCode(), variantDto.getBarcode(), skuRepository);
+                                newSku = skuRepository.save(newSku);
+                                newVariant.setSku(newSku);
+                                return newVariant;
+                            });
+
+                    if (variantDto.getPrice() != null) variant.setPrice(variantDto.getPrice());
+                    if (variantDto.getName() != null) variant.setName(variantDto.getName());
+                    variant = variantRepository.save(variant);
+
+                    if (variantDto.getStockQuantity() != null) {
+                        Inventory inventory = variant.getInventoryItem();
+                        if (inventory == null) {
+                            inventory = ProductCreationMapper.toInventoryEntity(variant.getSku(), variantDto.getStockQuantity());
+                            inventory = inventoryRepository.save(inventory);
+                            variant.setInventoryItem(inventory);
+                        } else {
+                            inventory.setStockQuantity(variantDto.getStockQuantity());
+                            inventoryRepository.save(inventory);
+                        }
+                    }
+                    updatedVariants.add(variant);
+                }
+
+                // Remove variants not in the new list
+                existingVariants.stream()
+                        .filter(ev -> updatedVariants.stream().noneMatch(uv -> uv.getId().equals(ev.getId())))
+                        .forEach(variantRepository::delete);
+
+                product.setVariants(updatedVariants);
+            }
+
+            // Handle Images (updated logic)
+            List<ProductImage> existingImages = product.getProductImages() != null ? new ArrayList<>(product.getProductImages()) : new ArrayList<>();
+
+            // Delete specified images
+            if (dto.getRemoveImageIds() != null && !dto.getRemoveImageIds().isEmpty()) {
+                for (UUID removeImageId : dto.getRemoveImageIds()) {
+                    if (imageService.deleteImage(removeImageId, bucketName, productId)) {
+                        existingImages.removeIf(image -> image.getId().equals(removeImageId));
+                        logger.info("Deleted image {} for product {}", removeImageId, productId);
+                    } else {
+                        logger.warn("Failed to delete image {} for product {}", removeImageId, productId);
+                    }
+                }
+                product.setProductImages(existingImages);
+            }
+
+            // Add new images (append to existing)
+            if (newImages != null && !newImages.isEmpty()) {
+                for (MultipartFile file : newImages) {
+                    ImageDto imageDto = imageService.uploadImageFile(file, bucketName, product.getId());
+                    ProductImage newImage = ProductCreationMapper.toProductImageEntity(product, imageDto);
+                    existingImages.add(newImage);
+                }
+                product.setProductImages(existingImages);
+            }
+
+            // Save updated product with all relationships
+            productRepository.save(product);
+
+            // Return basic product DTO
+            return ProductMapper.toDto(product);
+        } catch (Exception e) {
+            logger.error("Failed to update product with multipart data", e);
+            throw new MerchantException("Failed to update product", "PRODUCT_UPDATE_ERROR");
         }
     }
 }

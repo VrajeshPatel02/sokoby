@@ -36,5 +36,12 @@ public interface ProductService {
 
     List<ProductDto> getProductsByCollection(String collectionType);
 
+    @Transactional
+    ProductDto updateProductWithMultipart(
+        UUID productId, 
+        String productDataJson, 
+        List<MultipartFile> newImages
+    );
+
 //    ProductCreationDto updateProductWithDetails(UUID productId, ProductCreationDto dto, MultipartFile[] files);
 }
