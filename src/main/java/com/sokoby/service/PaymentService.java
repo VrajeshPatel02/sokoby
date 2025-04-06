@@ -1,6 +1,7 @@
 package com.sokoby.service;
 
 import com.sokoby.payload.PaymentDto;
+import com.sokoby.payload.SubscriptionDto;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
@@ -18,4 +19,6 @@ public interface PaymentService {
 
     @Transactional
     void handleFailedPayment(String paymentIntentId, String errorMessage, Map<String, String> metadata);
+
+    String createSubscriptionSession(SubscriptionDto subscriptionDto);
 }

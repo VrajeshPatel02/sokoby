@@ -1,14 +1,20 @@
 package com.sokoby.service.impl;
 
+import com.sokoby.entity.Merchant;
 import com.sokoby.entity.Order;
 import com.sokoby.entity.Payment;
+import com.sokoby.entity.Subscription;
 import com.sokoby.enums.OrderStatus;
 import com.sokoby.enums.PaymentStatus;
+import com.sokoby.enums.SubscriptionStatus;
 import com.sokoby.exception.MerchantException;
 import com.sokoby.mapper.PaymentMapper;
 import com.sokoby.payload.PaymentDto;
+import com.sokoby.payload.SubscriptionDto;
+import com.sokoby.repository.MerchantRepository;
 import com.sokoby.repository.OrderRepository;
 import com.sokoby.repository.PaymentRepository;
+import com.sokoby.repository.SubscriptionRepository;
 import com.sokoby.service.PaymentService;
 import com.sokoby.util.PasswordGenerator;
 import com.stripe.Stripe;
@@ -23,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,6 +40,7 @@ import java.util.UUID;
 
         private final PaymentRepository paymentRepository;
         private final OrderRepository orderRepository;
+        private final MerchantRepository merchantRepository;
 
         @Value("${app.success.url}")
         private String successUrl;
@@ -41,13 +49,16 @@ import java.util.UUID;
         private String cancelUrl;
 
         private final String stripeSecretKey;
+        private final SubscriptionRepository subscriptionRepository;
 
         @Autowired
-        public PaymentServiceImpl(PaymentRepository paymentRepository, OrderRepository orderRepository,
-                                  @Value("${stripe.secret.key}") String stripeSecretKey) {
+        public PaymentServiceImpl(PaymentRepository paymentRepository, OrderRepository orderRepository, MerchantRepository merchantRepository,
+                                  @Value("${stripe.secret.key}") String stripeSecretKey, SubscriptionRepository subscriptionRepository) {
             this.paymentRepository = paymentRepository;
             this.orderRepository = orderRepository;
+            this.merchantRepository = merchantRepository;
             this.stripeSecretKey = stripeSecretKey;
+            this.subscriptionRepository = subscriptionRepository;
             logger.info("Stripe secret key injected: {}", stripeSecretKey); // Log for debugging (mask in production)
             if (stripeSecretKey == null || stripeSecretKey.trim().isEmpty()) {
                 throw new IllegalArgumentException("Stripe secret key is not configured in application.properties");
@@ -109,54 +120,16 @@ import java.util.UUID;
             Order order = orderRepository.findById(orderId)
                     .orElseThrow(() -> new MerchantException("Order not found", "ORDER_NOT_FOUND"));
 
-//            if (order.getStore().getStripeAccountId() == null) {
-//                throw new MerchantException("Store has no payment gateway configured", "NO_PAYMENT_GATEWAY");
-//            }
-
             try {
-//                if (Stripe.apiKey == null || Stripe.apiKey.trim().isEmpty()) {
-//                    Stripe.apiKey = stripeSecretKey; // Re-set if necessary
-//                    logger.warn("Stripe API key was null; reset to injected value");
-//                }
-//
-//                SessionCreateParams params = SessionCreateParams.builder()
-//                        .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
-//                        .setMode(SessionCreateParams.Mode.PAYMENT)
-//                        .setSuccessUrl(successUrl + "?orderId=" + order.getId())
-//                        .setCancelUrl(cancelUrl + "?orderId=" + order.getId())
-//                        .addLineItem(
-//                                SessionCreateParams.LineItem.builder()
-//                                        .setPriceData(
-//                                                SessionCreateParams.LineItem.PriceData.builder()
-//                                                        .setCurrency("usd")
-//                                                        .setUnitAmount((long) (order.getTotalAmount() * 100))
-//                                                        .setProductData(
-//                                                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
-//                                                                        .setName("Order #" + order.getId())
-//                                                                        .build()
-//                                                        )
-//                                                        .build()
-//                                        )
-//                                        .setQuantity(1L)
-//                                        .build()
-//                        )
-//                        .build();
-//
-//                Session session = Session.create(params);
-
                 Payment payment = new Payment();
                 payment.setOrder(order);
                 payment.setAmount(order.getTotalAmount());
-                payment.setStripePaymentIntentId("payment" + PasswordGenerator.generatePassword(10));
-//                payment.setStripeCheckoutSessionId(session.getId());
                 payment.setStatus(PaymentStatus.valueOf("PENDING".toUpperCase()));
 
                 Payment savedPayment = paymentRepository.save(payment);
                 logger.info("Created payment session {} for order {}", savedPayment.getId(), orderId);
 
                 PaymentDto dto = PaymentMapper.toDto(savedPayment);
-//                dto.setStripeCheckoutSessionId(session.getId());
-//                dto.setStripeCheckoutUrl(session.getUrl());
                 return dto;
             } catch (Exception e) {
                 logger.error("Stripe payment error for order {}: {}", orderId, e.getMessage());
@@ -237,6 +210,57 @@ import java.util.UUID;
             logger.warn("Could not find payment or order for failed payment intent: {}", paymentIntentId);
         }
     }
+
+        @Override
+        public String createSubscriptionSession(SubscriptionDto subscriptionDto) {
+            Merchant merchant = merchantRepository.findById(subscriptionDto.getMerchant())
+                    .orElseThrow(() -> new MerchantException("Merchant Not found", "MERCHANT_NOT_FOUND"));
+            try {
+                if (Stripe.apiKey == null || Stripe.apiKey.trim().isEmpty()) {
+                    Stripe.apiKey = stripeSecretKey;
+                    logger.warn("Stripe API key was null; reset to injected value");
+                }
+                String successUrl = "http://localhost:8080/payment/success";
+                String cancelUrl = "http://localhost:8080/payment/cancel";
+
+                SessionCreateParams params = SessionCreateParams.builder()
+                        .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+                        .setSuccessUrl(successUrl + "?merchantId=" + merchant.getId())
+                        .setCancelUrl(cancelUrl + "?merchantId=" + merchant.getId())
+                        .setSubscriptionData(SessionCreateParams.SubscriptionData.builder().setTrialPeriodDays(14L).build())
+                        .addLineItem(
+                                SessionCreateParams.LineItem.builder()
+                                        .setPriceData(
+                                                SessionCreateParams.LineItem.PriceData.builder()
+                                                        .setCurrency("usd")
+                                                        .setUnitAmount((long) (subscriptionDto.getAmount() * 100))
+                                                        .setRecurring(SessionCreateParams.LineItem.PriceData.Recurring.builder()
+                                                                .setInterval(Objects.equals(subscriptionDto.getInterval(), "YEAR") ? SessionCreateParams.LineItem.PriceData.Recurring.Interval.YEAR : SessionCreateParams.LineItem.PriceData.Recurring.Interval.MONTH)
+                                                                .build())
+                                                        .setProductData(
+                                                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                                                        .setName("Merchant #" + subscriptionDto.getMerchant())
+                                                                        .build()
+                                                        )
+                                                        .build()
+                                        )
+                                        .setQuantity(1L)
+                                        .build()
+                        )
+                        .build();
+
+                Session session = Session.create(params);
+                Subscription subscription = new Subscription();
+                subscription.setMerchant(merchant);
+                subscription.setStatus(SubscriptionStatus.PENDING);
+                subscription.setStripeCheckoutSessionId(session.getId()); // Store Checkout Session ID
+                subscriptionRepository.save(subscription);
+                logger.info("Subscription session created with ID: {}", session.getId());
+                return session.getUrl();
+            } catch (StripeException e) {
+                throw new MerchantException("Payment processing failed: " + e.getMessage(), "PAYMENT_PROCESSING_ERROR");
+            }
+        }
 
 
 }

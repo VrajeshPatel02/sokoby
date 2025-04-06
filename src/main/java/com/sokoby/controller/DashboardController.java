@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "${app.cors.allowed-origins}", allowCredentials = "true")
 @Slf4j
 public class DashboardController {
 

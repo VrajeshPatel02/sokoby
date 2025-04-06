@@ -135,7 +135,9 @@ public class ProductCreationMapper {
             dto.setImages(product.getProductImages().stream()
                     .map(image -> {
                         ImageDto imageDto = new ImageDto();
+                        imageDto.setId(image.getId());
                         imageDto.setImageUrl(image.getImageUrl());
+                        imageDto.setProductId(image.getId());
                         return imageDto;
                     })
                     .collect(Collectors.toList()));

@@ -1,6 +1,5 @@
 package com.sokoby.controller;
 
-import com.sokoby.service.PaymentService;
 import com.sokoby.service.WebhookService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
@@ -30,7 +29,6 @@ public class StripeWebhookController {
         try {
             logger.info("Received webhook with payload length: {} bytes", payload.length());
 
-            // Construct event from payload
             Event event = Webhook.constructEvent(payload, sigHeader, stripeWebhookSecret);
             logger.info("Event constructed with type: '{}'", event.getType());
 
@@ -39,15 +37,31 @@ public class StripeWebhookController {
                     case "checkout.session.completed":
                         logger.info("Handling checkout.session.completed event");
                         webhookService.handleCheckoutSessionCompleted(event, payload);
+                        break;
 
                     case "payment_intent.succeeded":
                         logger.info("Payment intent succeeded event received");
-                        WebhookService.handlePaymentIntentSucceeded(event, payload);
+                        webhookService.handlePaymentIntentSucceeded(event, payload);
                         break;
 
                     case "payment_intent.payment_failed":
                         logger.info("Payment intent failed event received");
                         webhookService.handlePaymentIntentFailed(event, payload);
+                        break;
+
+                    case "customer.subscription.created":
+                        logger.info("Handling customer.subscription.created event");
+                        webhookService.handleSubscriptionCreated(event, payload);
+                        break;
+
+                    case "customer.subscription.updated":
+                        logger.info("Handling customer.subscription.updated event");
+                        webhookService.handleSubscriptionUpdated(event, payload);
+                        break;
+
+                    case "customer.subscription.deleted":
+                        logger.info("Handling customer.subscription.deleted event");
+                        webhookService.handleSubscriptionDeleted(event, payload);
                         break;
 
                     default:
@@ -56,7 +70,6 @@ public class StripeWebhookController {
                 }
             } catch (Exception e) {
                 logger.error("Error processing event of type {}: {}", event.getType(), e.getMessage(), e);
-                // Still return 200 to acknowledge receipt to Stripe
                 return ResponseEntity.ok("Event received but error during processing: " + e.getMessage());
             }
 

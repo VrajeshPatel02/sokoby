@@ -44,6 +44,12 @@ public class Subscription {
     @Column(name = "updated_at")
     private Date updatedAt;
 
+    @Column(name = "amount")
+    private Double amount;
+
+    @Column(name = "interval")
+    private String interval;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();

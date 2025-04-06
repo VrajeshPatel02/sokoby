@@ -50,6 +50,9 @@ public class Payment {
     @Column(name = "error_message")
     private String errorMessage;
 
+    @Column(name = "stripe_subscription_id")
+    private String stripeSubscriptionId;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();
