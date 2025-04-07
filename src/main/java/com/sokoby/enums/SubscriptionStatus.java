@@ -4,5 +4,5 @@ public enum SubscriptionStatus {
     PENDING,
     ACTIVE,
     PAST_DUE,
-    CANCELED
+    PENDING_CANCELLATION, CANCELED
 }

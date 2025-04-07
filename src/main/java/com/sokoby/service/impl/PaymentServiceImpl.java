@@ -17,9 +17,10 @@ import com.sokoby.repository.OrderRepository;
 import com.sokoby.repository.PaymentRepository;
 import com.sokoby.repository.SubscriptionRepository;
 import com.sokoby.service.PaymentService;
-import com.sokoby.util.PasswordGenerator;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
+import com.stripe.model.Invoice;
+import com.stripe.model.Price;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.slf4j.Logger;
@@ -29,12 +30,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
-    @Service
+@Service
     public class PaymentServiceImpl implements PaymentService {
 
         private static final Logger logger = LoggerFactory.getLogger(PaymentServiceImpl.class);
@@ -272,5 +271,134 @@ import java.util.UUID;
             }
         }
 
+    @Transactional
+    @Override
+    public SubscriptionDto updateSubscription(UUID subscriptionId, SubscriptionDto subscriptionDto) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new MerchantException("Subscription not found", "SUBSCRIPTION_NOT_FOUND"));
 
+        try {
+            // Retrieve the current Stripe subscription
+            com.stripe.model.Subscription stripeSubscription = com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId());
+
+            // Create a new Price object for the updated amount and interval
+            Map<String, Object> priceParams = new HashMap<>();
+            priceParams.put("unit_amount", (long) (subscriptionDto.getAmount() * 100));
+            priceParams.put("currency", "usd");
+            priceParams.put("recurring", Map.of(
+                    "interval", Objects.equals(subscriptionDto.getInterval(), "YEAR") ? "year" : "month"
+            ));
+            priceParams.put("product_data", Map.of(
+                    "name", "Merchant #" + subscriptionDto.getMerchant()
+            ));
+            Price price = Price.create(priceParams);
+
+            // Update the subscription with the new price
+            Map<String, Object> updateParams = new HashMap<>();
+            updateParams.put("items", List.of(Map.of(
+                    "id", stripeSubscription.getItems().getData().get(0).getId(),
+                    "price", price.getId() // Use the new price ID
+            )));
+            updateParams.put("proration_behavior", "create_prorations"); // Adjust billing for mid-cycle changes
+            stripeSubscription.update(updateParams);
+
+            // Sync local subscription entity
+            subscription.setAmount(subscriptionDto.getAmount());
+            subscription.setInterval(subscriptionDto.getInterval());
+            subscriptionRepository.save(subscription);
+
+            logger.info("Subscription {} updated with new amount {} and interval {}", subscriptionId, subscriptionDto.getAmount(), subscriptionDto.getInterval());
+            return SubscriptionMapper.toDto(subscription); // Assuming @Autowired SubscriptionMapper subscriptionMapper
+        } catch (StripeException e) {
+            logger.error("Failed to update Stripe subscription {}: {}", subscriptionId, e.getMessage(), e);
+            throw new MerchantException("Failed to update subscription: " + e.getMessage(), "SUBSCRIPTION_UPDATE_ERROR");
+        }
+    }
+
+    @Transactional
+    @Override
+    public void cancelSubscription(UUID subscriptionId, boolean immediate) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new MerchantException("Subscription not found", "SUBSCRIPTION_NOT_FOUND"));
+
+        try {
+            com.stripe.model.Subscription stripeSubscription = com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId());
+            if (immediate) {
+                stripeSubscription.cancel();
+                subscription.setStatus(SubscriptionStatus.CANCELED);
+            } else {
+                Map<String, Object> params = new HashMap<>();
+                params.put("cancel_at_period_end", true);
+                stripeSubscription.update(params);
+                subscription.setStatus(SubscriptionStatus.PENDING_CANCELLATION); // Optional custom status
+            }
+            subscriptionRepository.save(subscription);
+        } catch (StripeException e) {
+            throw new MerchantException("Failed to cancel subscription: " + e.getMessage(), "SUBSCRIPTION_CANCEL_ERROR");
+        }
+    }
+
+    @Override
+    public SubscriptionDto getSubscriptionById(UUID id) {
+        Subscription subscription = subscriptionRepository.findById(id).orElseThrow(() -> new MerchantException("Subscription not found by id" + id, "SUBSCRIPTION_NOT_FOUND"));
+        return SubscriptionMapper.toDto(subscription);
+    }
+
+    @Override
+    public List<SubscriptionDto> getAllSubscriptions() {
+        try {
+            List<Subscription> subscriptions = subscriptionRepository.findAll();
+            return subscriptions.stream().map(SubscriptionMapper::toDto).collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Transactional
+    @Override
+    public SubscriptionDto renewSubscription(UUID subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new MerchantException("Subscription not found", "SUBSCRIPTION_NOT_FOUND"));
+
+        try {
+            com.stripe.model.Subscription stripeSubscription = com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId());
+            if (stripeSubscription.getCancelAtPeriodEnd()) {
+                Map<String, Object> params = new HashMap<>();
+                params.put("cancel_at_period_end", false);
+                stripeSubscription.update(params);
+
+                subscription.setStatus(SubscriptionStatus.ACTIVE);
+                subscriptionRepository.save(subscription);
+                logger.info("Subscription {} reactivated", subscriptionId);
+                return SubscriptionMapper.toDto(subscription);
+            } else {
+                throw new MerchantException("Subscription is not set to cancel at period end", "SUBSCRIPTION_NOT_PENDING_CANCELLATION");
+            }
+        } catch (StripeException e) {
+            throw new MerchantException("Failed to renew subscription: " + e.getMessage(), "SUBSCRIPTION_RENEW_ERROR");
+        }
+    }
+
+    @Override
+    public void retrySubscriptionPayment(UUID subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new MerchantException("Subscription not found", "SUBSCRIPTION_NOT_FOUND"));
+
+        try {
+            com.stripe.model.Subscription stripeSubscription = com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId());
+            if ("past_due".equals(stripeSubscription.getStatus()) || "unpaid".equals(stripeSubscription.getStatus())) {
+                // Fetch the latest invoice
+                Invoice invoice = Invoice.list(Map.of("subscription", subscription.getStripeSubscriptionId(), "limit", 1))
+                        .getData().get(0);
+                invoice.pay();
+
+                // Payment success triggers invoice.payment_succeeded webhook
+                logger.info("Retried payment for subscription {}", subscriptionId);
+            } else {
+                logger.info("Subscription {} is not in a state requiring payment retry: {}", subscriptionId, stripeSubscription.getStatus());
+            }
+        } catch (StripeException e) {
+            throw new MerchantException("Failed to retry payment: " + e.getMessage(), "PAYMENT_RETRY_ERROR");
+        }
+    }
 }

@@ -64,6 +64,16 @@ public class StripeWebhookController {
                         webhookService.handleSubscriptionDeleted(event, payload);
                         break;
 
+                    case "invoice.payment_failed":
+                        logger.info("Handling invoice.payment_failed event");
+                        webhookService.handleInvoicePaymentFailed(event, payload);
+                        break;
+
+                    case "invoice.payment_succeeded":
+                        logger.info("Handling invoice.payment_succeeded event");
+                        webhookService.handleInvoicePaymentSucceeded(event, payload);
+                        break;
+
                     default:
                         logger.info("Unhandled event type: '{}'", event.getType());
                         break;
@@ -82,4 +92,5 @@ public class StripeWebhookController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing webhook");
         }
     }
+
 }

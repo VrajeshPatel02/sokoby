@@ -140,6 +140,37 @@ public class WebhookService {
     }
 
     @Transactional
+    public void handleInvoicePaymentSucceeded(Event event, String payload) {
+        try {
+            JsonObject jsonEvent = JsonParser.parseString(payload).getAsJsonObject();
+            JsonObject object = jsonEvent.getAsJsonObject("data").getAsJsonObject("object");
+            String subscriptionId = object.get("subscription").getAsString();
+
+            Optional<Subscription> subscriptionOptional = subscriptionRepository.findByStripeSubscriptionId(subscriptionId);
+            if (subscriptionOptional.isPresent()) {
+                Subscription subscription = subscriptionOptional.get();
+                subscription.setStatus(SubscriptionStatus.ACTIVE);
+                subscriptionRepository.save(subscription);
+
+                Payment payment = paymentRepository.findByStripeSubscriptionId(subscriptionId)
+                        .orElseGet(() -> {
+                            Payment newPayment = new Payment();
+                            newPayment.setStripeSubscriptionId(subscriptionId);
+                            return newPayment;
+                        });
+                payment.setStatus(PaymentStatus.SUCCESS);
+                payment.setErrorMessage(null);
+                paymentRepository.save(payment);
+
+                logger.info("Payment succeeded for subscription {}", subscriptionId);
+            }
+        } catch (Exception e) {
+            logger.error("Error handling invoice.payment_succeeded: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @Transactional
     public void handleSubscriptionCreated(Event event, String payload) {
         try {
             JsonObject jsonEvent = JsonParser.parseString(payload).getAsJsonObject();
@@ -234,6 +265,41 @@ public class WebhookService {
             logger.info("Subscription {} deleted (from JSON)", subscriptionId);
         } catch (Exception e) {
             logger.error("Error handling customer.subscription.deleted: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @Transactional
+    public void handleInvoicePaymentFailed(Event event, String payload) {
+        try {
+            JsonObject jsonEvent = JsonParser.parseString(payload).getAsJsonObject();
+            JsonObject object = jsonEvent.getAsJsonObject("data").getAsJsonObject("object");
+            String subscriptionId = object.get("subscription").getAsString();
+            String attemptCount = object.get("attempt_count").getAsString();
+            String failureReason = object.has("last_payment_error") && !object.get("last_payment_error").isJsonNull()
+                    ? object.getAsJsonObject("last_payment_error").get("message").getAsString()
+                    : "Unknown error";
+
+            Optional<Subscription> subscriptionOptional = subscriptionRepository.findByStripeSubscriptionId(subscriptionId);
+            if (subscriptionOptional.isPresent()) {
+                Subscription subscription = subscriptionOptional.get();
+                Payment payment = paymentRepository.findByStripeSubscriptionId(subscriptionId)
+                        .orElseGet(() -> {
+                            Payment newPayment = new Payment();
+                            newPayment.setStripeSubscriptionId(subscriptionId);
+                            return newPayment;
+                        });
+                payment.setStatus(PaymentStatus.FAILED);
+                payment.setErrorMessage("Payment failed after " + attemptCount + " attempts: " + failureReason);
+                paymentRepository.save(payment);
+
+                // Optional: Notify customer via email or UI
+                logger.info("Payment failed for subscription {} after {} attempts: {}", subscriptionId, attemptCount, failureReason);
+            } else {
+                logger.warn("No subscription found for Stripe subscription ID: {}", subscriptionId);
+            }
+        } catch (Exception e) {
+            logger.error("Error handling invoice.payment_failed: {}", e.getMessage(), e);
             throw e;
         }
     }

@@ -19,10 +19,9 @@ public class Subscription {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "merchant_id", nullable = false)
     private Merchant merchant;
-
     @Column(name = "stripe_checkout_session_id")
     private String stripeCheckoutSessionId;
 
