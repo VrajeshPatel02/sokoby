@@ -25,6 +25,7 @@ public class OrderMapper {
         dto.setCustomerLastName(order.getCustomerLastName());
         dto.setCustomerPhoneNumber(order.getCustomerPhoneNumber());
         dto.setShippingAddress(AddressMapper.toDto(order.getShippingAddress()));
+        dto.setPaymentId(order.getPayment().getId());
         dto.setOrderItems(order.getOrderItems().stream()
                 .map(OrderItemMapper::toDto)
                 .collect(Collectors.toList()));

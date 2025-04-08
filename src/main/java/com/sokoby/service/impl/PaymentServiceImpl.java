@@ -48,6 +48,12 @@ import java.util.stream.Collectors;
         @Value("${app.cancel.url}")
         private String cancelUrl;
 
+        @Value("${app.subscription.success.url}")
+        private String subscriptionSuccessUrl;
+
+        @Value("${app.subscription.cancel.url}")
+        private String getSubscriptionCancelUrl;
+
         private final String stripeSecretKey;
         private final SubscriptionRepository subscriptionRepository;
 
@@ -223,13 +229,11 @@ import java.util.stream.Collectors;
                     Stripe.apiKey = stripeSecretKey;
                     logger.warn("Stripe API key was null; reset to injected value");
                 }
-                String successUrl = "http://localhost:8080/payment/success";
-                String cancelUrl = "http://localhost:8080/payment/cancel";
 
                 SessionCreateParams params = SessionCreateParams.builder()
                         .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-                        .setSuccessUrl(successUrl + "?merchantId=" + merchant.getId())
-                        .setCancelUrl(cancelUrl + "?merchantId=" + merchant.getId())
+                        .setSuccessUrl(subscriptionSuccessUrl)
+                        .setCancelUrl(subscriptionSuccessUrl)
                         .setSubscriptionData(SessionCreateParams.SubscriptionData.builder().setTrialPeriodDays(14L).build())
                         .addLineItem(
                                 SessionCreateParams.LineItem.builder()

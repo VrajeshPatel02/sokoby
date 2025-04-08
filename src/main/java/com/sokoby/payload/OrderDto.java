@@ -34,8 +34,6 @@ public class OrderDto {
 
     private DiscountDto discount;
 
-    private String paymentMethodId;
-
     // New customer detail fields (optional)
     private String customerFirstName;
     private String customerLastName;
@@ -46,14 +44,12 @@ public class OrderDto {
     private String status;
 
     private Date createdAt;
-    private Date updatedAt;
 
     private List<OrderItemDto> orderItems;
 
     private String discountCode;
+
     private Double subtotal;
 
     private Double discountAmount;
-
-    private String paymentUrl;
 }
