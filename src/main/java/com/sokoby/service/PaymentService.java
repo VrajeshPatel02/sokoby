@@ -21,7 +21,7 @@ public interface PaymentService {
     @Transactional
     void handleFailedPayment(String paymentIntentId, String errorMessage, Map<String, String> metadata);
 
-    String createSubscriptionSession(SubscriptionDto subscriptionDto);
+    SubscriptionDto createSubscriptionSession(SubscriptionDto subscriptionDto);
 
     SubscriptionDto updateSubscription(UUID subscriptionId, SubscriptionDto subscriptionDto);
 

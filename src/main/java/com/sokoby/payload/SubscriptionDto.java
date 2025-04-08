@@ -13,4 +13,5 @@ public class SubscriptionDto {
     private String stripeCheckoutSessionId;
     private String stripeSubscriptionId;
     private String status; // Maps to SubscriptionStatus enum
+    private String session_url;
 }

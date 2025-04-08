@@ -219,61 +219,66 @@ import java.util.stream.Collectors;
             logger.warn("Could not find payment or order for failed payment intent: {}", paymentIntentId);
         }
     }
-        @Transactional
-        @Override
-        public String createSubscriptionSession(SubscriptionDto subscriptionDto) {
-            Merchant merchant = merchantRepository.findById(subscriptionDto.getMerchant())
-                    .orElseThrow(() -> new MerchantException("Merchant Not found", "MERCHANT_NOT_FOUND"));
-            try {
-                if (Stripe.apiKey == null || Stripe.apiKey.trim().isEmpty()) {
-                    Stripe.apiKey = stripeSecretKey;
-                    logger.warn("Stripe API key was null; reset to injected value");
-                }
+    @Transactional
+    @Override
+    public SubscriptionDto createSubscriptionSession(SubscriptionDto subscriptionDto) {
+        Merchant merchant = merchantRepository.findById(subscriptionDto.getMerchant())
+                .orElseThrow(() -> new MerchantException("Merchant not found", "MERCHANT_NOT_FOUND"));
 
-                SessionCreateParams params = SessionCreateParams.builder()
-                        .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-                        .setSuccessUrl(subscriptionSuccessUrl)
-                        .setCancelUrl(subscriptionSuccessUrl)
-                        .setSubscriptionData(SessionCreateParams.SubscriptionData.builder().setTrialPeriodDays(14L).build())
-                        .addLineItem(
-                                SessionCreateParams.LineItem.builder()
-                                        .setPriceData(
-                                                SessionCreateParams.LineItem.PriceData.builder()
-                                                        .setCurrency("usd")
-                                                        .setUnitAmount((long) (subscriptionDto.getAmount() * 100))
-                                                        .setRecurring(SessionCreateParams.LineItem.PriceData.Recurring.builder()
-                                                                .setInterval(Objects.equals(subscriptionDto.getInterval(), "YEAR") ? SessionCreateParams.LineItem.PriceData.Recurring.Interval.YEAR : SessionCreateParams.LineItem.PriceData.Recurring.Interval.MONTH)
-                                                                .build())
-                                                        .setProductData(
-                                                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                                                        .setName("Merchant #" + subscriptionDto.getMerchant())
-                                                                        .build()
-                                                        )
-                                                        .build()
-                                        )
-                                        .setQuantity(1L)
-                                        .build()
-                        )
-                        .build();
-
-                Session session = Session.create(params);
-                Subscription subscription = SubscriptionMapper.toEntity(subscriptionDto);
-                subscription.setMerchant(merchant);
-                subscription.setStatus(SubscriptionStatus.PENDING);
-                subscription.setStripeCheckoutSessionId(session.getId());
-                subscriptionRepository.save(subscription);
-
-                Payment payment = new Payment();
-                payment.setStatus(PaymentStatus.PENDING);
-                payment.setStripeCheckoutSessionId(session.getId());
-                payment.setAmount(subscriptionDto.getAmount());
-                paymentRepository.save(payment);
-                logger.info("Subscription session created with ID: {}", session.getId());
-                return session.getUrl();
-            } catch (StripeException e) {
-                throw new MerchantException("Payment processing failed: " + e.getMessage(), "PAYMENT_PROCESSING_ERROR");
+        try {
+            if (Stripe.apiKey == null || Stripe.apiKey.trim().isEmpty()) {
+                Stripe.apiKey = stripeSecretKey;
+                logger.warn("Stripe API key was null; reset to injected value");
             }
+
+            SessionCreateParams params = SessionCreateParams.builder()
+                    .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+                    .setSuccessUrl(subscriptionSuccessUrl)
+                    .setCancelUrl(subscriptionSuccessUrl)
+                    .setSubscriptionData(SessionCreateParams.SubscriptionData.builder().setTrialPeriodDays(14L).build())
+                    .addLineItem(
+                            SessionCreateParams.LineItem.builder()
+                                    .setPriceData(
+                                            SessionCreateParams.LineItem.PriceData.builder()
+                                                    .setCurrency("usd")
+                                                    .setUnitAmount((long) (subscriptionDto.getAmount() * 100))
+                                                    .setRecurring(SessionCreateParams.LineItem.PriceData.Recurring.builder()
+                                                            .setInterval(Objects.equals(subscriptionDto.getInterval(), "YEAR") ? SessionCreateParams.LineItem.PriceData.Recurring.Interval.YEAR : SessionCreateParams.LineItem.PriceData.Recurring.Interval.MONTH)
+                                                            .build())
+                                                    .setProductData(
+                                                            SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                                                    .setName("Merchant #" + subscriptionDto.getMerchant())
+                                                                    .build()
+                                                    )
+                                                    .build()
+                                    )
+                                    .setQuantity(1L)
+                                    .build()
+                    )
+                    .build();
+
+            Session session = Session.create(params);
+            Subscription subscription = SubscriptionMapper.toEntity(subscriptionDto); // Assuming subscriptionMapper is autowired
+            subscription.setMerchant(merchant);
+            subscription.setStatus(SubscriptionStatus.PENDING);
+            subscription.setStripeCheckoutSessionId(session.getId());
+            subscriptionRepository.save(subscription);
+
+            Payment payment = new Payment();
+            payment.setStatus(PaymentStatus.PENDING);
+            payment.setStripeCheckoutSessionId(session.getId());
+            payment.setAmount(subscriptionDto.getAmount());
+            paymentRepository.save(payment);
+
+            logger.info("Subscription session created with ID: {}", session.getId());
+            SubscriptionDto dto = SubscriptionMapper.toDto(subscription);
+            dto.setSession_url(session.getUrl());
+            return dto;
+        } catch (StripeException e) {
+            logger.error("Failed to create subscription session for merchant {}: {}", merchant.getId(), e.getMessage(), e);
+            throw new MerchantException("Payment processing failed: " + e.getMessage(), "PAYMENT_PROCESSING_ERROR");
         }
+    }
 
     @Transactional
     @Override
