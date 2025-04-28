@@ -1,13 +1,7 @@
 package com.sokoby.controller;
 
-import com.sokoby.payload.JWTTokenDto;
-import com.sokoby.payload.LoginDto;
-import com.sokoby.payload.MerchantDto;
-import com.sokoby.service.CustomerService;
-import com.sokoby.service.MerchantService;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.Valid;
+import java.util.Objects;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +11,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Objects;
+import com.sokoby.payload.JWTTokenDto;
+import com.sokoby.payload.LoginDto;
+import com.sokoby.payload.MerchantDto;
+import com.sokoby.service.CustomerService;
+import com.sokoby.service.MerchantService;
+
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")  // API endpoint for user authentication and registration.
