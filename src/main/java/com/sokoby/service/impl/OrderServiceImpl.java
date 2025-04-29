@@ -1,16 +1,9 @@
 package com.sokoby.service.impl;
 
-import com.sokoby.entity.*;
-import com.sokoby.enums.OrderStatus;
-import com.sokoby.exception.MerchantException;
-import com.sokoby.mapper.AddressMapper;
-import com.sokoby.payload.OrderDto;
-import com.sokoby.payload.PaymentDto;
-import com.sokoby.repository.*;
-import com.sokoby.mapper.OrderMapper;
-import com.sokoby.service.InventoryService;
-import com.sokoby.service.OrderService;
-import com.sokoby.service.PaymentService;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,9 +12,30 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import com.sokoby.entity.Customer;
+import com.sokoby.entity.Discount;
+import com.sokoby.entity.Order;
+import com.sokoby.entity.OrderItem;
+import com.sokoby.entity.Payment;
+import com.sokoby.entity.Product;
+import com.sokoby.entity.Store;
+import com.sokoby.entity.Variant;
+import com.sokoby.enums.OrderStatus;
+import com.sokoby.exception.MerchantException;
+import com.sokoby.mapper.AddressMapper;
+import com.sokoby.mapper.OrderMapper;
+import com.sokoby.payload.OrderDto;
+import com.sokoby.payload.PaymentDto;
+import com.sokoby.repository.CustomerRepository;
+import com.sokoby.repository.DiscountRepository;
+import com.sokoby.repository.OrderRepository;
+import com.sokoby.repository.PaymentRepository;
+import com.sokoby.repository.ProductRepository;
+import com.sokoby.repository.StoreRepository;
+import com.sokoby.repository.VariantRepository;
+import com.sokoby.service.InventoryService;
+import com.sokoby.service.OrderService;
+import com.sokoby.service.PaymentService;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -328,6 +342,12 @@ public class OrderServiceImpl implements OrderService {
 
             // Create payment session
             PaymentDto paymentDto = paymentService.createPayment(savedOrder.getId());
+            
+            // Get the payment entity and set it on the order
+            Payment payment = paymentRepository.findById(paymentDto.getId())
+                    .orElseThrow(() -> new MerchantException("Payment not found", "PAYMENT_NOT_FOUND"));
+            savedOrder.setPayment(payment);
+            savedOrder = orderRepository.save(savedOrder);
 
             OrderDto orderDto = OrderMapper.toDto(savedOrder);
             orderDto.setPaymentId(paymentDto.getId());
